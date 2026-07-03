@@ -9,5 +9,5 @@ public interface JobServiceInterface {
     public UserResponse postJob(PostJobRequest postJobRequest, String request,
                                 String userId) throws CustomException;
 
-    public UserResponse applyJob(String request,String usrId,Long jobId)  throws CustomException;
+//    public UserResponse applyJob(String request,String usrId,Long jobId)  throws CustomException;
 }

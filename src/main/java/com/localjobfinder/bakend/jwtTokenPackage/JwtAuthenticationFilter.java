@@ -3,7 +3,7 @@ package com.localjobfinder.bakend.jwtTokenPackage;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.localjobfinder.bakend.exceptionPackage.CustomException;
-import com.localjobfinder.bakend.responsePackage.ApiResponse;
+import com.localjobfinder.bakend.responsePackage.AuthResponse;
 import com.localjobfinder.bakend.utilsPackage.SecurityUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
@@ -18,7 +18,6 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Collections;
 
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
@@ -60,11 +59,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                 if (jwtService.validateToken(token, userId)) {
 
+                    // set a minimal authority - roles can be added to JWT claims later
                     UsernamePasswordAuthenticationToken authToken =
                             new UsernamePasswordAuthenticationToken(
                                     userId,
                                     null,
-                                    Collections.emptyList()
+                                    java.util.List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_USER"))
                             );
 
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
@@ -72,16 +72,24 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 }
             }
         } catch (CustomException ex) {
-            // 1. Create the ApiResponse object using the exception data
-            ApiResponse apiResponse = new ApiResponse(
+            AuthResponse authResponse = new AuthResponse(
                     ex.getStatus(),
                     ex.getErrorCode().name(),
                     ex.getErrorCode().getMessage(),
                     SecurityUtils.sanitize(request.getRequestURI())
             );
 
-            // 2. Pass the response and the apiResponse object to the helper
-            writeErrorResponse(apiResponse, response);
+            writeErrorResponse(authResponse, response);
+            return;
+        } catch (Exception ex) {
+            // unexpected exception during auth filter
+            AuthResponse authResponse = new AuthResponse(
+                    401,
+                    "TOKEN_INVALID",
+                    "Token validation failed",
+                    SecurityUtils.sanitize(request.getRequestURI())
+            );
+            writeErrorResponse(authResponse, response);
             return;
         }
 
@@ -89,13 +97,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
 
-    private void writeErrorResponse(ApiResponse apiResponse, HttpServletResponse response) throws IOException {
+    private void writeErrorResponse(AuthResponse authResponse, HttpServletResponse response) throws IOException {
         // Set status and content type
-        response.setStatus(apiResponse.getStatus());
+        response.setStatus(authResponse.getStatus());
         response.setContentType("application/json");
 
         // Write JSON using the class-level pre-configured mapper
-        String json = mapper.writeValueAsString(apiResponse);
+        String json = mapper.writeValueAsString(authResponse);
         response.getWriter().write(json);
     }
 }

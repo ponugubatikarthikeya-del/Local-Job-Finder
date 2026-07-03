@@ -21,13 +21,44 @@ public class JwtService {
 
     // token expiration time
     private static final long REFRESH_TOKEN_EXPIRATION = 1000 * 60 * 60 * 24 * 7; //86400000 * 7 for 7 days
-    private static final long ACCESS_TOKEN_EXPIRATION = 1000 * 60 * 15 ; // 15 min
+    private static final long ACCESS_TOKEN_EXPIRATION = 1000 * 60 * 60 * 24 ; // 24 hr
 
     // generate signing key
     private SecretKey getKey() {
-//        return Keys.hmacShaKeyFor(secretKey.getBytes());
-        return Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
+        String key = secretKey;
+        if (key == null || key.trim().length() < 32) {
+            // try environment variable fallback
+            String env = System.getenv("JWT_SECRET");
+            if (env != null && env.trim().length() > 0) {
+                key = env;
+            }
+        }
+
+        if (key == null || key.trim().length() < 32) {
+            // attempt base64 decode if possible
+            try {
+                byte[] decoded = java.util.Base64.getDecoder().decode(key == null ? "" : key);
+                if (decoded != null && decoded.length >= 32) {
+                    return Keys.hmacShaKeyFor(decoded);
+                }
+            } catch (IllegalArgumentException ignored) {
+                // not base64 or invalid
+            }
+
+            throw new com.localjobfinder.bakend.exceptionPackage.CustomException(
+                    com.localjobfinder.bakend.enums.ErrorMsg.GEN_001, 500,
+                    "JWT secret is not configured or too short. Set application property " +
+                            "'jwt.secret.key' (min 32 chars) or environment variable 'JWT_SECRET' with a secure key.");
+        }
+
+       return Keys.hmacShaKeyFor(key.getBytes(StandardCharsets.UTF_8));
     }
+
+//      private SecretKey generateKey() {
+//
+//          return Keys.hmacShaKeyFor(secretKey.getBytes());
+//}
+
 
     // return only important user data
 
@@ -70,7 +101,7 @@ public class JwtService {
                 .claims(getData(userId))
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + REFRESH_TOKEN_EXPIRATION))
-                .signWith(getKey(), SignatureAlgorithm.HS256)
+                                .signWith(getKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
 
@@ -79,31 +110,27 @@ public class JwtService {
     }
 
     // validate the token
-    public boolean validateToken(String token,String userId) {
-
+    public boolean validateToken(String token, String userId) {
         String extracted = extractUserId(token);
-        return extracted.equals(userId)
-                && !isTokenExpired(token);
+        return extracted.equals(userId) && !isTokenExpired(token);
     }
 
     private boolean isTokenExpired(String token) {
-        return extractClaims(token).
-                getExpiration().
-                before(new Date());
+        return extractClaims(token).getExpiration().before(new Date());
     }
 
-    // parse token claims
+    // Parse token claims using the latest JJWT standards
     private Claims extractClaims(String token) {
         try {
-            return Jwts.parser()
-                    .verifyWith(getKey())
+            return Jwts.parser()                 // 1. Changed from parserBuilder() to parser()
+                    .verifyWith(getKey())        // 2. Changed from setSigningKey() to verifyWith()
                     .build()
-                    .parseSignedClaims(token)
-                    .getPayload();
-        } catch (Exception e) {
+                    .parseSignedClaims(token)    // 3. Changed from parseClaimsJws() to parseSignedClaims()
+                    .getPayload();               // 4. Changed from getBody() to getPayload()
+        } catch (JwtException | IllegalArgumentException e) {
+            // Token is invalid, expired, or malformed
             throw new CustomException(ErrorMsg.TOKEN_002, 401); // Invalid token
         }
-
     }
 
 

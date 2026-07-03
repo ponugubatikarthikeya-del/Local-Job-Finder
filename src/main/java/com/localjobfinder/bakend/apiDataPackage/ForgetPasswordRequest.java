@@ -7,7 +7,7 @@ import lombok.Data;
 @Data
 public class ForgetPasswordRequest {
 
-    @NotNull(message = "id required")
+    @NotNull(message = "reset key required")
     private String resetKey ;
 
     @NotNull(message = "password is required")

@@ -4,7 +4,7 @@ import lombok.Getter;
 import java.time.Instant;
 
 @Getter
-public class ApiResponse {
+public class AuthResponse {
     // getters
     private final Instant timestamp;
     private final int status;
@@ -12,7 +12,7 @@ public class ApiResponse {
     private final String message;
     private final String path;
 
-    public ApiResponse(int status, String errorCode, String message, String path) {
+    public AuthResponse(int status, String errorCode, String message, String path) {
         this.timestamp = Instant.now();
         this.status = status;
         this.errorCode = errorCode;

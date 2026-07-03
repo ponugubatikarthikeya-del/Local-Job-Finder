@@ -9,8 +9,8 @@ import java.math.BigDecimal;
 
 @Data
 @Entity
-@Table(name = "worker_profiles")
-public class WorkerProfileEntity {
+@Table(name = "user_profiles")
+public class ProfilesEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -21,8 +21,17 @@ public class WorkerProfileEntity {
     @JsonBackReference
     private UserEntity user;
 
+    @Column(name = "headline")
+    private String headline;
+
     @Column(name = "skills",columnDefinition = "json")
     private String skills;
+
+    @Column(name = "date_of_birth",nullable = false)
+    private String dateOfBirth;
+
+    @Column(name = "city_name")
+    private String cityName;
 
     @Column(name = "experience_level")
     private String experienceLevel;
@@ -32,6 +41,9 @@ public class WorkerProfileEntity {
 
     @Column(name = "total_jobs_completed")
     private Integer totalJobsCompleted = 0 ;
+
+    @Column(name = "user_description")
+    private String userDescription;
 
     @Column(precision = 10, scale = 8)
     private BigDecimal latitude;

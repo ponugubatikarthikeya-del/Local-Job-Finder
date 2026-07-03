@@ -11,16 +11,16 @@ public class ApplicationJobsEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int id;
+    private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     @JsonIgnore
     private UserEntity user;
 
-    @OneToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "job_id", nullable = false)
-    @JsonIgnore // We usually don't want to reserialize the whole job inside the listing
-    private ActiveJobsListEntity activeJobId;
+    @JsonIgnore
+    private PostJobsEntity job;
 
 }

@@ -39,12 +39,19 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests(auth -> auth
 
-                        // Public APIs
-                        .requestMatchers("/api/v1/user/**").permitAll()
-//                        .requestMatchers(HttpMethod.GET, "/jobs/**").permitAll()
+                       // Public APIs - only authentication related endpoints
+                       .requestMatchers(
+                               "/user/signup",
+                               "/user/login",
+                               "/user/refresh",
+                               "/user/forgot-password",
+                               "/user/verify-otp",
+                               "/user/change-password",
+                               "/user/sample"
+                       ).permitAll()
 
-                        // Everything else → requires login
-                        .anyRequest().authenticated()
+                       // Everything else → requires login
+                       .anyRequest().authenticated()
                 )
 
                 // Add JWT filter before default auth filter
