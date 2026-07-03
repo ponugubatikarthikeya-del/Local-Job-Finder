@@ -8,7 +8,7 @@ CREATE TABLE active_listings (
     expiry_at DATETIME NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
-    SPATIAL INDEX(location),
+    SPATIAL INDEX idx_location (location),
     CONSTRAINT fk_active_job FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE,
     CONSTRAINT fk_active_owner FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
 );
