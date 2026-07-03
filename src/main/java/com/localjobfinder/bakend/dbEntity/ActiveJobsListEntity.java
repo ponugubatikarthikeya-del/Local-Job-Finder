@@ -16,7 +16,7 @@ public class ActiveJobsListEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id")
-    private Long list_id;
+    private Long id;
 
     // CONNECTION 1: Links to the Permanent Job record
     @OneToOne(fetch = FetchType.LAZY)
@@ -26,7 +26,7 @@ public class ActiveJobsListEntity {
 
     // CONNECTION 2: Links to the Owner (User)
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
+    @JoinColumn(name = "owner_id", nullable = false)
     @JsonIgnore
     private UserEntity owner;
 
@@ -35,6 +35,7 @@ public class ActiveJobsListEntity {
     private Point location;
 
     private BigDecimal payAmount;
+
     private String category;
 
     @Column(name = "expiry_at")
