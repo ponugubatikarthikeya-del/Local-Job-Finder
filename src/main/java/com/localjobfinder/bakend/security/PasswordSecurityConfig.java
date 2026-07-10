@@ -1,4 +1,4 @@
-package com.localjobfinder.bakend.configurationPackage;
+package com.localjobfinder.bakend.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

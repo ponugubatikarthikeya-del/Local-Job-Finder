@@ -1,13 +1,9 @@
 package com.localjobfinder.bakend.controllerPackage;
 
 import com.localjobfinder.bakend.apiDataPackage.*;
-import com.localjobfinder.bakend.enums.ErrorMsg;
 import com.localjobfinder.bakend.enums.SuccessMsg;
 import com.localjobfinder.bakend.exceptionPackage.CustomException;
-import com.localjobfinder.bakend.responsePackage.RefreshTokenResponse;
-import com.localjobfinder.bakend.responsePackage.UserResponse;
-import com.localjobfinder.bakend.responsePackage.AuthResponse;
-import com.localjobfinder.bakend.responsePackage.LoginResponse;
+import com.localjobfinder.bakend.responsePackage.*;
 import com.localjobfinder.bakend.servicePackage.AuthService;
 import com.localjobfinder.bakend.utilsPackage.SecurityUtils;
 import jakarta.servlet.http.HttpServletRequest;
@@ -17,12 +13,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
-
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("user/")
+@RequestMapping("user/auth/")
 public class AuthController {
 
     private static final Logger log = LoggerFactory.getLogger(AuthController.class);
@@ -46,6 +40,20 @@ public class AuthController {
         log.info("signup api called for email={}", signupRequest.getEmail());
 
         AuthResponse response = authService.signup(signupRequest, getPath(httpServletRequest));
+
+        return ResponseEntity.status(HttpStatusCode.valueOf(response.getStatus())).body(response);
+
+    }
+
+    @PostMapping("signupOtp-verification")
+    public ResponseEntity<LoginResponse> signupOtpVerification(
+            @Valid @RequestBody SignupOtpValidationRequest signupOtpValidationRequest,
+            HttpServletRequest httpServletRequest
+    )  throws CustomException {
+
+        log.info("signup otp api called for email={}", signupOtpValidationRequest.getEmail());
+
+        LoginResponse response = authService.signupOtpVerification(signupOtpValidationRequest,getPath(httpServletRequest));
         return ResponseEntity.status(HttpStatusCode.valueOf(response.getStatus())).body(response);
 
     }
@@ -76,24 +84,6 @@ public class AuthController {
 
     }
 
-    @GetMapping("getUserDetails")
-    public ResponseEntity<UserResponse> getUserDetails(
-            @Valid Authentication authentication, HttpServletRequest httpServletRequest) throws CustomException {
-
-                // get userId for jwt token
-        if (authentication == null || authentication.getPrincipal() == null) {
-            throw new CustomException(ErrorMsg.AUTH_004, 401);
-        }
-
-        String userId = (String) authentication.getPrincipal();
-
-        log.info("getUserDetails api called for id={}",userId );
-
-        UserResponse response = authService.getUserDetails(userId, getPath(httpServletRequest));
-        return ResponseEntity.status(HttpStatusCode.valueOf(response.getStatus())).body(response);
-    }
-
-
     // forget password email checkup
 
     @PostMapping("forgot-password")
@@ -111,11 +101,11 @@ public class AuthController {
 
     @PostMapping("verify-otp")
     public ResponseEntity<AuthResponse> forgotPasswordOtpValidate(
-            @Valid @RequestBody ForgetPasswordOtpValidateRequest forgetPasswordOtpValidateRequest,
+            @Valid @RequestBody ResetPasswordOtpValidateRequest resetPasswordOtpValidateRequest,
             HttpServletRequest httpRequest) throws CustomException {
-        log.info("forgot password otp validate called for otp={}", forgetPasswordOtpValidateRequest.getOtp());
+        log.info("forgot password otp validate called for otp={}", resetPasswordOtpValidateRequest.getOtp());
 
-        AuthResponse response = authService.forgetPasswordOtpValidate(forgetPasswordOtpValidateRequest,getPath(httpRequest));
+        AuthResponse response = authService.forgetPasswordOtpValidate(resetPasswordOtpValidateRequest,getPath(httpRequest));
         return ResponseEntity.status(HttpStatusCode.valueOf(response.getStatus())).body(response);
     }
 

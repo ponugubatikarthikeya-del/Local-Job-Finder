@@ -9,5 +9,4 @@ public class ExceptionConstants {
     public static final String SIGN_PASSWORD = "password minimum 8 characters";
     public static final String LOGIN_PASSWORD = "password is incorrect";
 
-
 }

@@ -1,4 +1,4 @@
-package com.localjobfinder.bakend.converterPackage;
+package com.localjobfinder.bakend.dtoPackage;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

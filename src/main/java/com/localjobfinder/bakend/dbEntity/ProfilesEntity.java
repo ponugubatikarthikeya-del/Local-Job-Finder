@@ -33,9 +33,6 @@ public class ProfilesEntity {
     @Column(name = "city_name")
     private String cityName;
 
-    @Column(name = "experience_level")
-    private String experienceLevel;
-
     @Column(name = "rating")
     private BigDecimal rating = BigDecimal.ZERO;
 
@@ -45,10 +42,12 @@ public class ProfilesEntity {
     @Column(name = "user_description")
     private String userDescription;
 
-    @Column(precision = 10, scale = 8)
+    // Fixed: Changed from Double to BigDecimal and added precision/scale mappings
+    @Column(name = "latitude", precision = 10, scale = 8, nullable = false)
     private BigDecimal latitude;
 
-    @Column(precision = 11, scale = 8)
+    // Fixed: Changed from Double to BigDecimal and added precision/scale mappings
+    @Column(name = "longitude", precision = 11, scale = 8, nullable = false)
     private BigDecimal longitude;
 
     @Enumerated(EnumType.STRING)

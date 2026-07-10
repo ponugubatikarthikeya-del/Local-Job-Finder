@@ -27,10 +27,10 @@ public class PostJobRequest {
     private JobTypeEnum jobType;
 
     @NotNull(message = "latitude is required")
-    private Double latitude;
+    private BigDecimal latitude;
 
     @NotNull(message = "longitude is required")
-    private Double longitude;
+    private BigDecimal longitude;
 
     @NotBlank(message = "address is required")
     private String address;

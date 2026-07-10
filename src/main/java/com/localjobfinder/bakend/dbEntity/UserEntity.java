@@ -1,6 +1,8 @@
 package com.localjobfinder.bakend.dbEntity;
 
 import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.localjobfinder.bakend.enums.AccountStatusEnum;
+import com.localjobfinder.bakend.enums.UserRoleEnum;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -33,24 +35,33 @@ public class UserEntity {
     @Column(name = "phone", length = 20)
     private String phone;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "account_status")
+    private AccountStatusEnum accountStatus;
+
+    @Column(name = "fcm_token", length = 512) // FCM tokens can be long strings
+    private String fcmToken;
+
     @Column(name = "created_at", insertable = false, updatable = false)
     private Instant createdAt;
 
     @Column(name = "updated_at", insertable = false)
     private Instant updatedAt;
-//
-//    @Column(name = "otp_hash")
-//    private String otpHash;
-//
-//    @Column(name = "otp_expiry")
-//    private Instant otpExpiry;
-//
-//    @Column(name = "hash_reset_key")
-//    private String resetKey;
 
     // Refresh tokens are stored in a separate table; keep relation for convenience
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference
     private List<TokenEntity> refreshTokens = new ArrayList<>();
+
+//    @Enumerated(EnumType.STRING)
+//    @Column(name = "role", nullable = false)
+//    private UserRoleEnum role = UserRoleEnum.WORKER;
+//
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonManagedReference
+    private ProfilesEntity profile;
+//
+//    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+//    private OwnerProfileEntity ownerProfile;
 
 }

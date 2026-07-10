@@ -5,7 +5,6 @@ CREATE TABLE user_profiles (
   skills JSON,
   date_of_birth DATE,
   city_name VARCHAR(100),
-  experience_level VARCHAR(50),
   rating DECIMAL(5,2) DEFAULT 0,
   total_jobs_completed INT DEFAULT 0,
   user_description VARCHAR(100),

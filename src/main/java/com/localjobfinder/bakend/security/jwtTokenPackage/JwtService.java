@@ -1,4 +1,4 @@
-package com.localjobfinder.bakend.jwtTokenPackage;
+package com.localjobfinder.bakend.security.jwtTokenPackage;
 
 import com.localjobfinder.bakend.enums.ErrorMsg;
 import com.localjobfinder.bakend.exceptionPackage.CustomException;
@@ -45,8 +45,8 @@ public class JwtService {
                 // not base64 or invalid
             }
 
-            throw new com.localjobfinder.bakend.exceptionPackage.CustomException(
-                    com.localjobfinder.bakend.enums.ErrorMsg.GEN_001, 500,
+            throw new CustomException(
+                    ErrorMsg.GEN_001, 500,
                     "JWT secret is not configured or too short. Set application property " +
                             "'jwt.secret.key' (min 32 chars) or environment variable 'JWT_SECRET' with a secure key.");
         }

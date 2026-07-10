@@ -12,6 +12,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 @ControllerAdvice
@@ -101,5 +102,24 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(authResponse);
     }
+
+    // Handle Firebase errors
+    @ExceptionHandler(ExecutionException.class)
+    public ResponseEntity<AuthResponse> handleFirebaseException(
+            ExecutionException ex,
+            HttpServletRequest request) {
+
+        String safePath = SecurityUtils.sanitize(request.getRequestURI());
+
+        AuthResponse response = new AuthResponse(
+                500,
+                "FIREBASE_ERROR",
+                "Firebase operation failed",
+                safePath
+        );
+
+        return ResponseEntity.status(500).body(response);
+    }
+
 
 }

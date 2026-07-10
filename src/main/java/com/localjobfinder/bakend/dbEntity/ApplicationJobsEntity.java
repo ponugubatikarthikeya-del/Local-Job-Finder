@@ -3,6 +3,7 @@ package com.localjobfinder.bakend.dbEntity;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
+import com.localjobfinder.bakend.enums.ApplicationStatusEnum;
 
 @Data
 @Entity
@@ -21,6 +22,10 @@ public class ApplicationJobsEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "job_id", nullable = false)
     @JsonIgnore
-    private PostJobsEntity job;
+    private JobsEntity job;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    private ApplicationStatusEnum status = ApplicationStatusEnum.APPLIED;
 
 }

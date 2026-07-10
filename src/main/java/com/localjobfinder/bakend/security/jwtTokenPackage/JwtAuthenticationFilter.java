@@ -1,4 +1,4 @@
-package com.localjobfinder.bakend.jwtTokenPackage;
+package com.localjobfinder.bakend.security.jwtTokenPackage;
 
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;

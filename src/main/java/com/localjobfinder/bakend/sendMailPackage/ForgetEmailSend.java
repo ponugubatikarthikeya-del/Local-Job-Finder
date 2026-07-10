@@ -18,10 +18,17 @@ public class ForgetEmailSend {
     }
 
     @Async
-    public void mailSender(String email,String text) {
+    public void mailSender(String email,String text,String type) {
         SimpleMailMessage mailMessage = new SimpleMailMessage();
+
         mailMessage.setTo(email);
-        mailMessage.setSubject("Reset your password");
+
+        if(type.equals("signup")){
+            mailMessage.setSubject("Signup Verification");
+        } else {
+            mailMessage.setSubject("Reset your password");
+        }
+
         mailMessage.setText(text);
 
         javaMailSender.send(mailMessage);

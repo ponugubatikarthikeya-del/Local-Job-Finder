@@ -17,7 +17,7 @@ import java.time.LocalDateTime;
         @Index(name = "idx_jobs_created_at" , columnList = "created_at")
 })
 
-public class PostJobsEntity {
+public class JobsEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -25,32 +25,34 @@ public class PostJobsEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
-    @JsonBackReference // This prevents the job from trying to serialize the user again
+    @JsonBackReference
     private UserEntity user;
 
-    @Column(name = "title")
+    @Column(name = "title", nullable = false, length = 150) // Matched VARCHAR(150)
     private String title;
 
-    @Column(name = "description", length = 300)
+    @Column(name = "description", columnDefinition = "TEXT") // Matched TEXT schema type
     private String description;
 
-    @Column(name = "category")
+    @Column(name = "category", length = 100) // Matched VARCHAR(100)
     private String category;
 
-    @Column(name = "pay_amount")
-    private BigDecimal pay_amount;
+    @Column(name = "pay_amount", precision = 10, scale = 2) // Matched DECIMAL(10,2)
+    private BigDecimal payAmount;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "job_type")
     private JobTypeEnum jobType;
 
-    @Column(name = "latitude")
-    private Double latitude;
+    // Fixed: Changed from Double to BigDecimal and added precision/scale mappings
+    @Column(name = "latitude", precision = 10, scale = 8, nullable = false)
+    private BigDecimal latitude;
 
-    @Column(name = "longitude")
-    private Double longitude;
+    // Fixed: Changed from Double to BigDecimal and added precision/scale mappings
+    @Column(name = "longitude", precision = 11, scale = 8, nullable = false)
+    private BigDecimal longitude;
 
-    @Column(name = "address")
+    @Column(name = "address", length = 255) // Matched VARCHAR(255)
     private String address;
 
     @Enumerated(EnumType.STRING)
@@ -60,10 +62,10 @@ public class PostJobsEntity {
     @Column(name = "job_time")
     private LocalDateTime jobTime;
 
-    @Column(name = "created_at",updatable = false,insertable = false)
+    @Column(name = "created_at", updatable = false, insertable = false)
     private LocalDateTime createdAt;
 
-    @Column(name = "updated_at",insertable = false,updatable = false)
-    private  LocalDateTime updatedAt;
+    @Column(name = "updated_at", insertable = false, updatable = false)
+    private LocalDateTime updatedAt;
 
 }

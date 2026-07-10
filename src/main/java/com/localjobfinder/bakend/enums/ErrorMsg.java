@@ -47,7 +47,14 @@ public enum ErrorMsg {
     SYS_002("File upload failed."),
 
     // 🌐 GENERAL
-    GEN_001("Internal server error.");
+    GEN_001("Internal server error."),
+
+    JOB_001("ob context tracking parameter not found."),
+    JOB_002("Reviews can only be posted after the job is completely finalized."),
+    JOB_003("You have already submitted a review for this job workspace."),
+    JOB_004("No active worker placement records found for this workspace."),
+
+    RREVIW_001("Access Denied: You are not authorized to review this job performance.");
 
     private final String message;
 

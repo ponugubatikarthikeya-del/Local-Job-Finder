@@ -9,9 +9,14 @@ import lombok.Data;
 @Data
 public class LoginRequest {
 
+    @NotBlank(message = "email is required")
     @Pattern(regexp = "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",message = ExceptionConstants.SIGN_EMAIL)
     private String email;
 
     @Size(min = 8, message = ExceptionConstants.LOGIN_PASSWORD)
     private String password;
+
+    @NotBlank(message = "fcm token is required")
+    private String fcmToken;
+
 }
