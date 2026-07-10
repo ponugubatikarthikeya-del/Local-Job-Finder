@@ -1,18 +1,21 @@
 package com.localjobfinder.bakend.dbEntity;
 
 import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.localjobfinder.bakend.enums.AccountStatusEnum;
+import com.localjobfinder.bakend.enums.UserRoleEnum;
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
 @Data
+@NoArgsConstructor
 @Entity
 @Table(name = "users", indexes = {
-        @Index(name = "idx_users_email", columnList = "email")
+        @Index(name = "idx_users_email", columnList = "email"),
 })
 public class UserEntity {
 
@@ -20,8 +23,8 @@ public class UserEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 100)
-    private String name;
+    @Column(name = "username", nullable = false, length = 100)
+    private String username;
 
     @Column(nullable = false, unique = true, length = 150)
     private String email;
@@ -32,30 +35,33 @@ public class UserEntity {
     @Column(name = "phone", length = 20)
     private String phone;
 
-    @Column(name = "created_at", updatable = false, insertable = false)
-    private LocalDateTime createdAt;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "account_status")
+    private AccountStatusEnum accountStatus;
+
+    @Column(name = "fcm_token", length = 512) // FCM tokens can be long strings
+    private String fcmToken;
+
+    @Column(name = "created_at", insertable = false, updatable = false)
+    private Instant createdAt;
 
     @Column(name = "updated_at", insertable = false)
-    private LocalDateTime updatedAt;
+    private Instant updatedAt;
 
-    @Column(name = "otp")
-    private int otp;
-
-    @Column(name = "otp_expiry")
-    private Instant otpExpiry;
-
-    @Column(name = "reset_key")
-    private String resetKey;
-
-    @Column(name = "access_token")
-    private String accessToken;
-
-    @Column(name = "refresh_token")
-    private String refreshToken;
-
-    // mappedBy refers to the field name 'user' in the PostJobsEntity
+    // Refresh tokens are stored in a separate table; keep relation for convenience
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    @JsonManagedReference // This is the "Forward" part that gets serialized
-    private List<PostJobsEntity> jobs = new ArrayList<>();
+    @JsonManagedReference
+    private List<TokenEntity> refreshTokens = new ArrayList<>();
+
+//    @Enumerated(EnumType.STRING)
+//    @Column(name = "role", nullable = false)
+//    private UserRoleEnum role = UserRoleEnum.WORKER;
+//
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonManagedReference
+    private ProfilesEntity profile;
+//
+//    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+//    private OwnerProfileEntity ownerProfile;
 
 }

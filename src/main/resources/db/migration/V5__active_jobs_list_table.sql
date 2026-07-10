@@ -1,0 +1,10 @@
+
+CREATE TABLE active_listings (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    job_id BIGINT NOT NULL,
+    owner_id BIGINT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_active_job FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE,
+    CONSTRAINT fk_active_owner FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+);

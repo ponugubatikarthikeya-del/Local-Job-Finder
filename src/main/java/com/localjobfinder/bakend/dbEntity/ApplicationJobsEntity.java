@@ -3,6 +3,7 @@ package com.localjobfinder.bakend.dbEntity;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
+import com.localjobfinder.bakend.enums.ApplicationStatusEnum;
 
 @Data
 @Entity
@@ -11,16 +12,20 @@ public class ApplicationJobsEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int id;
+    private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     @JsonIgnore
     private UserEntity user;
 
-    @OneToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "job_id", nullable = false)
-    @JsonIgnore // We usually don't want to reserialize the whole job inside the listing
-    private ActiveJobsListEntity activeJobId;
+    @JsonIgnore
+    private JobsEntity job;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    private ApplicationStatusEnum status = ApplicationStatusEnum.APPLIED;
 
 }
