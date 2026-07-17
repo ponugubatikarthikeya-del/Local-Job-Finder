@@ -121,21 +121,21 @@ public class AuthController {
         return ResponseEntity.status(HttpStatusCode.valueOf(response.getStatus())).body(response);
     }
 
-    @GetMapping("sample")
-    public ResponseEntity<UserResponse> sample(HttpServletRequest httpRequest) throws CustomException {
-
-        String username = "hey karthikeya you are very handsome";
-
-        UserResponse userResponse = new UserResponse(
-                200,
-                SuccessMsg.GEN_200.name(),
-                SuccessMsg.GEN_200.getMessage(),
-                getPath(httpRequest),
-                username
-        );
-
-        return ResponseEntity.status(HttpStatusCode.valueOf(userResponse.getStatus())).body(userResponse);
-        }
+//    @GetMapping("sample")
+//    public ResponseEntity<UserResponse> sample(HttpServletRequest httpRequest) throws CustomException {
+//
+//        String username = "hey karthikeya you are very handsome";
+//
+//        UserResponse userResponse = new UserResponse(
+//                200,
+//                SuccessMsg.GEN_200.name(),
+//                SuccessMsg.GEN_200.getMessage(),
+//                getPath(httpRequest),
+//                username
+//        );
+//
+//        return ResponseEntity.status(HttpStatusCode.valueOf(userResponse.getStatus())).body(userResponse);
+//        }
 
 }
 

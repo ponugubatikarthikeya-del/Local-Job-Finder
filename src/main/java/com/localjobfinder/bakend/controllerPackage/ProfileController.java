@@ -78,23 +78,5 @@ public class ProfileController {
 
     }
 
-    @PutMapping("fcm-token")
-    public ResponseEntity<AuthResponse> updateFcmToken(
-            @Valid @RequestBody FcmTokenRequest tokenRequest,
-            HttpServletRequest httpServletRequest
-    ) throws CustomException {
-
-        Long currentUserId = securityService.getCurrentUserId();
-
-        log.info("updateFcmToken api called for email={}",currentUserId);
-
-        String path = httpServletRequest.getRequestURI();
-
-        // Call service to update the token
-         AuthResponse response = profileService.updateFcmToken(currentUserId, tokenRequest.getFcmToken(),getPath(httpServletRequest));
-
-        return ResponseEntity.status(HttpStatusCode.valueOf(response.getStatus())).body(response);
-    }
-
 
 }

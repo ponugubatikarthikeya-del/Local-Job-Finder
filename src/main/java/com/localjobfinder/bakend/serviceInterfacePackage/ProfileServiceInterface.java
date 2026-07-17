@@ -15,5 +15,4 @@ public interface ProfileServiceInterface {
 
     public ProfileResponse updateProfile(Long id, String request, EditProfileRequest editProfileRequest) throws CustomException;
 
-    public AuthResponse updateFcmToken(Long id, String fcmToken,String request) throws CustomException;
 }

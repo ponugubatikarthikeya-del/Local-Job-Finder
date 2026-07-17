@@ -144,10 +144,10 @@ public class AuthService implements AuthServiceInterface {
 
         user.setAccountStatus(AccountStatusEnum.VERIFIED);
 
-        // PRODUCTION STEP: Bind device token immediately upon successful validation if provided
-        if (signupOtpValidationRequest.getFcmToken() != null && !signupOtpValidationRequest.getFcmToken().isBlank()) {
-            user.setFcmToken(signupOtpValidationRequest.getFcmToken());
-        }
+//        // PRODUCTION STEP: Bind device token immediately upon successful validation if provided
+//        if (signupOtpValidationRequest.getFcmToken() != null && !signupOtpValidationRequest.getFcmToken().isBlank()) {
+//            user.setFcmToken(signupOtpValidationRequest.getFcmToken());
+//        }
 
         userRepository.save(user);
 
@@ -202,11 +202,11 @@ public class AuthService implements AuthServiceInterface {
             throw new CustomException(ErrorMsg.AUTH_007,401);
         }
 
-        // PRODUCTION STEP: Update token during authentication if user switched phones or reinstalled the app
-        if (loginRequest.getFcmToken() != null && !loginRequest.getFcmToken().isBlank()) {
-            user.setFcmToken(loginRequest.getFcmToken());
-            userRepository.save(user); // Flushes fresh token routing strings to database indices
-        }
+//        // PRODUCTION STEP: Update token during authentication if user switched phones or reinstalled the app
+//        if (loginRequest.getFcmToken() != null && !loginRequest.getFcmToken().isBlank()) {
+//            user.setFcmToken(loginRequest.getFcmToken());
+//            userRepository.save(user); // Flushes fresh token routing strings to database indices
+//        }
 
         String jwtAccessToken = jwtService.generateAccessToken(user.getId());
         String jwtRefreshToken = jwtService.generateRefreshToken(user.getId());

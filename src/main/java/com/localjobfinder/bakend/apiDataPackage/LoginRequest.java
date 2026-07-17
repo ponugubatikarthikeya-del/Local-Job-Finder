@@ -16,7 +16,4 @@ public class LoginRequest {
     @Size(min = 8, message = ExceptionConstants.LOGIN_PASSWORD)
     private String password;
 
-    @NotBlank(message = "fcm token is required")
-    private String fcmToken;
-
 }
