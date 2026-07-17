@@ -39,8 +39,8 @@ public class UserEntity {
     @Column(name = "account_status")
     private AccountStatusEnum accountStatus;
 
-    @Column(name = "fcm_token", length = 512) // FCM tokens can be long strings
-    private String fcmToken;
+//    @Column(name = "fcm_token", length = 512) // FCM tokens can be long strings
+//    private String fcmToken;
 
     @Column(name = "created_at", insertable = false, updatable = false)
     private Instant createdAt;

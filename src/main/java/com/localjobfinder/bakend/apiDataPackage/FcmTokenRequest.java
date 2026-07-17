@@ -7,6 +7,6 @@ import lombok.Data;
 public class FcmTokenRequest {
 
     @NotBlank(message = "FCM Token cannot be blank")
-    private String fcmToken;
+    private String deviceFcmToken;
 
 }

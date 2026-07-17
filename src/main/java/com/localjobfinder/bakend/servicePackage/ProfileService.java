@@ -190,26 +190,4 @@ public class ProfileService implements ProfileServiceInterface {
         );
     }
 
-
-    @Override
-    @Transactional
-    public AuthResponse updateFcmToken(Long userId, String fcmToken, String request) throws CustomException {
-        UserEntity user = userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(ErrorMsg.AUTH_008,400));
-
-        if(fcmToken == null || fcmToken.isBlank() || request == null){
-            throw new CustomException(ErrorMsg.TOKEN_002,400);
-        }
-
-        user.setFcmToken(fcmToken);
-        userRepository.save(user);
-
-        log.info("Successfully updated reactive FCM device token for userId={}", userId);
-        return new AuthResponse(
-                200,
-                SuccessMsg.AUTH_202.name(),
-                SuccessMsg.AUTH_202.getMessage(),
-                request
-        );
-    }
 }

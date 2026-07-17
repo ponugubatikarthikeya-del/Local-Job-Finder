@@ -17,6 +17,4 @@ public class SignupOtpValidationRequest {
     @Positive(message = "otp must be positive")
     private Integer otp;
 
-    @NotBlank(message = "fcm token is required")
-    private String fcmToken;
 }
