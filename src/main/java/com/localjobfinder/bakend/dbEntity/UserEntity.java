@@ -2,7 +2,7 @@ package com.localjobfinder.bakend.dbEntity;
 
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.localjobfinder.bakend.enums.AccountStatusEnum;
-import com.localjobfinder.bakend.enums.UserRoleEnum;
+import com.localjobfinder.bakend.OauthPackage.AuthLoginEnum;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -26,14 +26,27 @@ public class UserEntity {
     @Column(name = "username", nullable = false, length = 100)
     private String username;
 
+    @Column(name = "phone", length = 20)
+    private String phone;
+
     @Column(nullable = false, unique = true, length = 150)
     private String email;
 
-    @Column(name = "password_hash", nullable = false, length = 255)
+    @Column(name = "password_hash", nullable = true) // Must be NULLABLE for Google users!
     private String passwordHash;
 
-    @Column(name = "phone", length = 20)
-    private String phone;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "auth_provider")
+    private AuthLoginEnum authProvider; // "LOCAL", "GOOGLE", or "HYBRID"
+
+    @Column(name = "google_id", unique = true)
+    private String googleId;
+
+    @Column(name ="github_id",unique = true)
+    private String githubId;
+
+    @Column(name = "facebook_id",unique = true)
+    private String facebookId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "account_status")

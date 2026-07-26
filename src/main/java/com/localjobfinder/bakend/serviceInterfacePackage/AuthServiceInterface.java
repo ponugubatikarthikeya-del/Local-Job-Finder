@@ -1,5 +1,6 @@
 package com.localjobfinder.bakend.serviceInterfacePackage;
 
+import com.localjobfinder.bakend.OauthPackage.OAuthLoginRequest;
 import com.localjobfinder.bakend.apiDataPackage.*;
 import com.localjobfinder.bakend.exceptionPackage.CustomException;
 import com.localjobfinder.bakend.responsePackage.*;
@@ -16,7 +17,7 @@ public interface AuthServiceInterface {
     public LoginResponse login(LoginRequest loginRequest, String request)
             throws CustomException;
 
-    public RefreshTokenResponse newAccessToken(RefreshTokenRequest refreshTokenRequest, String request)
+    public RefreshTokenResponse newAccessToken(Long userId,String token, String request)
          throws CustomException;
 
     public AuthResponse forgetPasswordEmailRequest(
@@ -27,4 +28,6 @@ public interface AuthServiceInterface {
 
     public AuthResponse forgetPasswordRequest(
             ForgetPasswordRequest forgetPasswordRequest, String request) throws CustomException;
+
+    public LoginResponse socialLogin (OAuthLoginRequest oAuthLoginRequest, String request) throws CustomException;
 }

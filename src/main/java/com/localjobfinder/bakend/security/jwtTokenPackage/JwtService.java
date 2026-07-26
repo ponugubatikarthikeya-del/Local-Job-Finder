@@ -115,9 +115,14 @@ public class JwtService {
         return extracted.equals(userId) && !isTokenExpired(token);
     }
 
-    private boolean isTokenExpired(String token) {
-        return extractClaims(token).getExpiration().before(new Date());
+    public boolean isTokenExpired(String token) {
+        try {
+            return extractClaims(token).getExpiration().before(new Date());
+        } catch (CustomException e) {
+            return true; // If parsing fails or catches an exception, treat it as expired/invalid
+        }
     }
+
 
     // Parse token claims using the latest JJWT standards
     private Claims extractClaims(String token) {

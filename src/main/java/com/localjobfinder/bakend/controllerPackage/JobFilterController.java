@@ -3,10 +3,8 @@ package com.localjobfinder.bakend.controllerPackage;
 import com.localjobfinder.bakend.enums.ErrorMsg;
 import com.localjobfinder.bakend.exceptionPackage.CustomException;
 import com.localjobfinder.bakend.responsePackage.AllJobsResponse;
-import com.localjobfinder.bakend.security.SecurityService;
-import com.localjobfinder.bakend.serviceInterfacePackage.JobFilterServiceInterface;
+import com.localjobfinder.bakend.security.jwtTokenPackage.JwtSecurityService;
 import com.localjobfinder.bakend.servicePackage.JobFilerService;
-import com.localjobfinder.bakend.servicePackage.JobService;
 import com.localjobfinder.bakend.utilsPackage.SecurityUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
@@ -34,11 +32,11 @@ public class JobFilterController {
     }
 
     private final JobFilerService jobFilterService;
-    private final SecurityService securityService;
+    private final JwtSecurityService jwtSecurityService;
 
     @Autowired
-    public JobFilterController(SecurityService securityService, JobFilerService jobFilterService) {
-        this.securityService = securityService;
+    public JobFilterController(JwtSecurityService jwtSecurityService, JobFilerService jobFilterService) {
+        this.jwtSecurityService = jwtSecurityService;
         this.jobFilterService = jobFilterService;
     }
 
@@ -61,7 +59,7 @@ public class JobFilterController {
 
         String path = getPath(httpServletRequest);
 
-        Long  userId = securityService.getCurrentUserId();
+        Long  userId = jwtSecurityService.getCurrentUserId();
 
         // Instantiate page parameters safely
         Pageable pageable = PageRequest.of(page, size);
@@ -81,7 +79,7 @@ public class JobFilterController {
 
         log.info("getJobs api called");
 
-        Long userId = securityService.getCurrentUserId();
+        Long userId = jwtSecurityService.getCurrentUserId();
 
         log.debug("authenticated userId={}", userId);
 
@@ -106,7 +104,7 @@ public class JobFilterController {
         log.info("Job Search initiated: query='{}', category='{}', radius={}km, sort={}",
                 search, category, radius, pageable.getSort());
 
-        Long userId = securityService.getCurrentUserId();
+        Long userId = jwtSecurityService.getCurrentUserId();
 
         AllJobsResponse response = jobFilterService.searchJobs(
                 lat, lng, radius, search, category, getPath(httpServletRequest), userId, pageable

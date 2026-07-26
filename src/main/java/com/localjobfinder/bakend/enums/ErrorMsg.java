@@ -20,10 +20,26 @@ public enum ErrorMsg {
     AUTH_007("password is incorrect."),
     AUTH_008("User Account not exists."),
     AUTH_009("password is does not match."),
+    AUTH_010("Missing or invalid Authorization header"),
 
     // 🔐 AUTHORIZATION ERRORS
     AUTHZ_001("Access denied."),
     AUTHZ_002("Insufficient permissions."),
+
+    // ==========================================
+    // AUTH & OAUTH ERROR CODES
+    // ==========================================
+    OAUTH_001("Invalid or expired Google ID Token."),
+    OAUTH_002("Failed to verify Google Token: "),
+    OAUTH_003("Provider identifier and authentication keys cannot be empty."),
+    OAUTH_004("Unsupported OAuth provider: "),
+    OAUTH_005("Invalid or malformed Google ID Token signature."),
+    OAUTH_006("Google ID Token validation rejected: "),
+    OAUTH_007("Empty payload body from GitHub profile query."),
+    OAUTH_008("Unable to resolve a valid profile email address from your GitHub account."),
+    OAUTH_009("GitHub OAuth Verification failed: "),
+    OAUTH_010("Unable to retrieve verified email from account."),
+    OAUTH_011("Facebook OAuth Verification failed: ."),
 
     // 🔐 TOKEN ERRORS
     TOKEN_001("Authorization header missing."),

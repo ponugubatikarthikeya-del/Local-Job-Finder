@@ -4,7 +4,6 @@ CREATE TABLE active_listings (
     job_id BIGINT NOT NULL,
     owner_id BIGINT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
     CONSTRAINT fk_active_job FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE,
     CONSTRAINT fk_active_owner FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
 );

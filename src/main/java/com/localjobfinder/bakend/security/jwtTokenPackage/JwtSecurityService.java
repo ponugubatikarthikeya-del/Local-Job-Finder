@@ -1,4 +1,4 @@
-package com.localjobfinder.bakend.security;
+package com.localjobfinder.bakend.security.jwtTokenPackage;
 
 import com.localjobfinder.bakend.enums.ErrorMsg;
 import com.localjobfinder.bakend.exceptionPackage.CustomException;
@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.security.core.Authentication;
 
 @Component
-public class SecurityService {
+public class JwtSecurityService {
 
     public Long getCurrentUserId() {
         Authentication authentication =

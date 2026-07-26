@@ -3,7 +3,7 @@ package com.localjobfinder.bakend.controllerPackage;
 import com.localjobfinder.bakend.exceptionPackage.CustomException;
 import com.localjobfinder.bakend.responsePackage.JobResponse;
 import com.localjobfinder.bakend.responsePackage.ViewApplicantsResponse;
-import com.localjobfinder.bakend.security.SecurityService;
+import com.localjobfinder.bakend.security.jwtTokenPackage.JwtSecurityService;
 import com.localjobfinder.bakend.servicePackage.ApplicationService;
 import com.localjobfinder.bakend.utilsPackage.SecurityUtils;
 import jakarta.servlet.http.HttpServletRequest;
@@ -27,14 +27,13 @@ public class ApplicationController {
     }
 
     private final ApplicationService applicationService;
-    private final SecurityService securityService;
+    private final JwtSecurityService jwtSecurityService;
 
     @Autowired
-    public ApplicationController(ApplicationService applicationService, SecurityService securityService) {
+    public ApplicationController(ApplicationService applicationService, JwtSecurityService jwtSecurityService) {
         this.applicationService = applicationService;
-        this.securityService = securityService;
+        this.jwtSecurityService = jwtSecurityService;
     }
-
 
     @PostMapping("applyJob/{jobId}")
     public ResponseEntity<JobResponse> applyJob(
@@ -44,7 +43,7 @@ public class ApplicationController {
 
         log.info("applyJob api called for jobId={}", jobId);
 
-        Long userId = securityService.getCurrentUserId();
+        Long userId = jwtSecurityService.getCurrentUserId();
         log.debug("authenticated userId={}", userId);
 
         JobResponse userResponse = applicationService.applyJob(getPath(httpServletRequest), userId, jobId);
@@ -62,7 +61,7 @@ public class ApplicationController {
 
         log.info("viewApplicants api called for jobId={}", jobId);
 
-        Long userId = securityService.getCurrentUserId();
+        Long userId = jwtSecurityService.getCurrentUserId();
 
         log.debug("authenticated userId={}", userId);
 
@@ -82,7 +81,7 @@ public class ApplicationController {
 
         log.info("acceptApplicant api called for jobId={}, applicantId={}", jobId, applicantId);
 
-        Long userId = securityService.getCurrentUserId();
+        Long userId = jwtSecurityService.getCurrentUserId();
 
         log.debug("authenticated userId={}", userId);
 
@@ -100,7 +99,7 @@ public class ApplicationController {
 
         log.info("rejectApplicant api called for jobId={}, applicantId={}", jobId, applicantId);
 
-        Long userId = securityService.getCurrentUserId();
+        Long userId = jwtSecurityService.getCurrentUserId();
 
         log.debug("authenticated userId={}", userId);
 

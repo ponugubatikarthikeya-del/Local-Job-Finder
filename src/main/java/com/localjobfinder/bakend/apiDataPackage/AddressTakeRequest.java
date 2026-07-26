@@ -4,9 +4,9 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 @Data
-public class RefreshTokenRequest {
+public class AddressTakeRequest {
 
-    @NotBlank(message = "refresh token is required")
-    private String refreshToken;
-
+    @NotBlank(message = "city name is required")
+    private String cityName;
 }
+

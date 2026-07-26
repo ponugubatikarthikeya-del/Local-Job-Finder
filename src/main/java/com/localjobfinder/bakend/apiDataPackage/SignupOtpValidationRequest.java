@@ -13,8 +13,7 @@ public class SignupOtpValidationRequest {
     @Email(message = "invalid email")
     private String email;
 
-    @NotNull(message = "otp is invalid")
-    @Positive(message = "otp must be positive")
-    private Integer otp;
+    @NotBlank(message = "otp is invalid")
+    private String otp;
 
 }
