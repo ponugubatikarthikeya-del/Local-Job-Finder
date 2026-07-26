@@ -1,5 +1,6 @@
 package com.localjobfinder.bakend.servicePackage;
 
+import com.localjobfinder.bakend.apiDataPackage.AddressTakeRequest;
 import com.localjobfinder.bakend.apiDataPackage.EditProfileRequest;
 import com.localjobfinder.bakend.dbEntity.ProfilesEntity;
 import com.localjobfinder.bakend.dbEntity.UserEntity;
@@ -190,4 +191,40 @@ public class ProfileService implements ProfileServiceInterface {
         );
     }
 
+    @Override
+    @Transactional
+    public ProfileResponse updateUserAddress(Long id, AddressTakeRequest addressTakeRequest, String request) throws CustomException {
+
+        if(id == null){
+            throw new CustomException(ErrorMsg.AUTH_004,400);
+        }
+
+        if (addressTakeRequest == null) {
+            throw new CustomException(ErrorMsg.AUTH_008,400);
+        }
+
+        Optional<UserEntity> userEntity = userRepository.findById(id);
+
+        if(userEntity.isEmpty()){
+            throw new CustomException(ErrorMsg.AUTH_008,400);
+        }
+
+        UserEntity user = userEntity.get();
+
+        ProfilesEntity profilesEntity = user.getProfile();
+
+        if(profilesEntity == null){
+            throw new CustomException(ErrorMsg.AUTH_008,400);
+        }
+
+        profilesEntity.setCityName(addressTakeRequest.getCityName());
+        userRepository.save(user);
+
+        return new ProfileResponse(
+                201,
+                SuccessMsg.USER_202.name(),
+                SuccessMsg.USER_202.getMessage(),
+                request
+        );
+    }
 }

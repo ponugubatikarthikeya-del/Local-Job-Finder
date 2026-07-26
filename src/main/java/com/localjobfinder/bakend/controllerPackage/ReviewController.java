@@ -3,7 +3,7 @@ package com.localjobfinder.bakend.controllerPackage;
 import com.localjobfinder.bakend.apiDataPackage.SubmitReviewRequest;
 import com.localjobfinder.bakend.exceptionPackage.CustomException;
 import com.localjobfinder.bakend.responsePackage.JobResponse;
-import com.localjobfinder.bakend.security.SecurityService;
+import com.localjobfinder.bakend.security.jwtTokenPackage.JwtSecurityService;
 import com.localjobfinder.bakend.servicePackage.ReviewService;
 import com.localjobfinder.bakend.utilsPackage.SecurityUtils;
 import jakarta.servlet.http.HttpServletRequest;
@@ -29,11 +29,11 @@ public class ReviewController {
 
 
     private final ReviewService reviewService;
-    private final SecurityService securityService;
+    private final JwtSecurityService jwtSecurityService;
 
-    public ReviewController(ReviewService reviewService, SecurityService securityService) {
+    public ReviewController(ReviewService reviewService, JwtSecurityService jwtSecurityService) {
         this.reviewService = reviewService;
-        this.securityService = securityService;
+        this.jwtSecurityService = jwtSecurityService;
     }
 
     @PostMapping("submit")
@@ -42,7 +42,7 @@ public class ReviewController {
             HttpServletRequest httpServletRequest
     ) throws CustomException {
 
-        Long currentUserId = securityService.getCurrentUserId();
+        Long currentUserId = jwtSecurityService.getCurrentUserId();
         log.info("Current user id is {}", currentUserId);
 
         JobResponse response = reviewService.submitReview(currentUserId, submitReviewRequest, getPath(httpServletRequest));

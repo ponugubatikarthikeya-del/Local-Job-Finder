@@ -4,7 +4,7 @@ package com.localjobfinder.bakend.controllerPackage;
 import com.localjobfinder.bakend.apiDataPackage.FcmTokenRequest;
 import com.localjobfinder.bakend.exceptionPackage.CustomException;
 import com.localjobfinder.bakend.responsePackage.AuthResponse;
-import com.localjobfinder.bakend.security.SecurityService;
+import com.localjobfinder.bakend.security.jwtTokenPackage.JwtSecurityService;
 import com.localjobfinder.bakend.servicePackage.FcmTokenService;
 import com.localjobfinder.bakend.utilsPackage.SecurityUtils;
 import jakarta.servlet.http.HttpServletRequest;
@@ -28,12 +28,12 @@ public class FcmTokenController {
 
     private final FcmTokenService fcmTokenService;
 
-    private final SecurityService securityService;
+    private final JwtSecurityService jwtSecurityService;
 
     @Autowired
-    public FcmTokenController(FcmTokenService fcmTokenService,SecurityService securityService){
+    public FcmTokenController(FcmTokenService fcmTokenService, JwtSecurityService jwtSecurityService){
         this.fcmTokenService = fcmTokenService;
-        this.securityService = securityService;
+        this.jwtSecurityService = jwtSecurityService;
     }
 
     @PutMapping("fcm-token/register")
@@ -42,7 +42,7 @@ public class FcmTokenController {
             HttpServletRequest httpServletRequest
     ) throws CustomException {
 
-        Long currentUserId = securityService.getCurrentUserId();
+        Long currentUserId = jwtSecurityService.getCurrentUserId();
 
         log.info("updateFcmToken api called for email={}",currentUserId);
 
@@ -57,7 +57,7 @@ public class FcmTokenController {
             @RequestBody FcmTokenRequest request,
             HttpServletRequest httpServletRequest) throws CustomException {
 
-        Long currentUserId = securityService.getCurrentUserId();
+        Long currentUserId = jwtSecurityService.getCurrentUserId();
 
         log.info("logoutFcmToken api called for email={}",currentUserId);
 

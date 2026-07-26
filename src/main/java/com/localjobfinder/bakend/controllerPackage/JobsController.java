@@ -1,13 +1,11 @@
 package com.localjobfinder.bakend.controllerPackage;
 
 import com.localjobfinder.bakend.apiDataPackage.PostJobRequest;
-import com.localjobfinder.bakend.enums.ErrorMsg;
 import com.localjobfinder.bakend.exceptionPackage.CustomException;
-import com.localjobfinder.bakend.responsePackage.AllJobsResponse;
 import com.localjobfinder.bakend.responsePackage.JobDetailsResponse;
 import com.localjobfinder.bakend.responsePackage.JobResponse;
 import com.localjobfinder.bakend.responsePackage.UserResponse;
-import com.localjobfinder.bakend.security.SecurityService;
+import com.localjobfinder.bakend.security.jwtTokenPackage.JwtSecurityService;
 import com.localjobfinder.bakend.servicePackage.JobService;
 import com.localjobfinder.bakend.utilsPackage.SecurityUtils;
 import jakarta.servlet.http.HttpServletRequest;
@@ -15,13 +13,9 @@ import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.math.BigDecimal;
 
 @RestController
 @RequestMapping("user/job/")
@@ -34,12 +28,12 @@ public class JobsController {
     }
 
     private  final JobService jobService;
-    private final SecurityService securityService;
+    private final JwtSecurityService jwtSecurityService;
 
     @Autowired
-    public JobsController(JobService jobService, SecurityService securityService) {
+    public JobsController(JobService jobService, JwtSecurityService jwtSecurityService) {
         this.jobService = jobService;
-        this.securityService = securityService;
+        this.jwtSecurityService = jwtSecurityService;
     }
 
     @PostMapping("createJob")
@@ -49,7 +43,7 @@ public class JobsController {
 
        log.info("create job api called");
 
-       Long userId = securityService.getCurrentUserId();
+       Long userId = jwtSecurityService.getCurrentUserId();
 
        log.debug("authenticated userId={}", userId);
 
@@ -65,7 +59,7 @@ public class JobsController {
     ) throws CustomException {
         log.info("deleteJob api called for jobId={}", jobId);
 
-        Long userId = securityService.getCurrentUserId();
+        Long userId = jwtSecurityService.getCurrentUserId();
 
         log.debug("authenticated userId={}", userId);
         JobResponse response = jobService.deleteJob(userId,jobId,getPath(httpServletRequest));
@@ -81,7 +75,7 @@ public class JobsController {
 
        log.info("jobComplete api called for jobId={}", jobId);
 
-        Long userId = securityService.getCurrentUserId();
+        Long userId = jwtSecurityService.getCurrentUserId();
 
         JobResponse response = jobService.jobComplete(userId,jobId,getPath(httpServletRequest));
         return ResponseEntity.status(HttpStatusCode.valueOf(response.getStatus())).body(response);
@@ -96,7 +90,7 @@ public class JobsController {
         log.info("getJobDetails api called for jobId={}", jobId);
 
         String path = getPath(httpServletRequest);
-        Long userId = securityService.getCurrentUserId();
+        Long userId = jwtSecurityService.getCurrentUserId();
 
         JobDetailsResponse response = jobService.getJobDetails(path, userId, jobId);
 

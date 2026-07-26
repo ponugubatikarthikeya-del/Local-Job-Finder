@@ -33,6 +33,9 @@ public class TokenEntity {
     @Column(name = "hash_access_token")
     private String hashAccessToken;
 
+    @Column(name = "token_expires_at", nullable = false)
+    private Instant tokenExpiresAt;
+
     @Column(name = "hash_reset_key")
     private String hashResetKey;
 

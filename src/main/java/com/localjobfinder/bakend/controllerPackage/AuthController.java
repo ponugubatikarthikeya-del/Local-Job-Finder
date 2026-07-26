@@ -1,9 +1,11 @@
 package com.localjobfinder.bakend.controllerPackage;
 
+import com.localjobfinder.bakend.OauthPackage.OAuthLoginRequest;
 import com.localjobfinder.bakend.apiDataPackage.*;
-import com.localjobfinder.bakend.enums.SuccessMsg;
+import com.localjobfinder.bakend.enums.ErrorMsg;
 import com.localjobfinder.bakend.exceptionPackage.CustomException;
 import com.localjobfinder.bakend.responsePackage.*;
+import com.localjobfinder.bakend.security.jwtTokenPackage.JwtSecurityService;
 import com.localjobfinder.bakend.servicePackage.AuthService;
 import com.localjobfinder.bakend.utilsPackage.SecurityUtils;
 import jakarta.servlet.http.HttpServletRequest;
@@ -14,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.RestTemplate;
 
 @RestController
 @RequestMapping("user/auth/")
@@ -21,10 +24,12 @@ public class AuthController {
 
     private static final Logger log = LoggerFactory.getLogger(AuthController.class);
     private final AuthService authService;
+    private JwtSecurityService jwtSecurityService;
 
     @Autowired
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, JwtSecurityService jwtSecurityService) {
         this.authService = authService;
+        this.jwtSecurityService = jwtSecurityService;
     }
 
     private String getPath(HttpServletRequest request) {
@@ -72,13 +77,23 @@ public class AuthController {
     }
 
     // refresh token generate api
-    @PostMapping("refresh")
+    @PostMapping("refresh/token")
     public ResponseEntity<RefreshTokenResponse> refreshToken(
-            @Valid @RequestBody RefreshTokenRequest refreshTokenRequest,
+            @RequestHeader("Authorization") String authHeader, // 1. Extracts the raw header string
             HttpServletRequest httpServletRequest) throws CustomException {
         log.info("refreshToken api called");
 
-         RefreshTokenResponse response = authService.newAccessToken(refreshTokenRequest,getPath(httpServletRequest));
+        // 2. Safely extract the token by removing the "Bearer " prefix
+        String refreshToken = null;
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            refreshToken = authHeader.substring(7);
+        } else {
+            throw new CustomException(ErrorMsg.AUTH_010, 400);
+        }
+
+        Long userId = jwtSecurityService.getCurrentUserId();
+
+         RefreshTokenResponse response = authService.newAccessToken(userId,refreshToken,getPath(httpServletRequest));
 
          return ResponseEntity.status(HttpStatusCode.valueOf(response.getStatus())).body(response);
 
@@ -137,5 +152,33 @@ public class AuthController {
 //        return ResponseEntity.status(HttpStatusCode.valueOf(userResponse.getStatus())).body(userResponse);
 //        }
 
+
+    @PostMapping("social-login")
+    public ResponseEntity<LoginResponse> socialLogin(
+            @Valid @RequestBody OAuthLoginRequest oAuthLoginRequest,
+            HttpServletRequest httpServletRequest) throws CustomException {
+
+        log.info("Social Login initiated for provider={}", oAuthLoginRequest.getProvider());
+
+        LoginResponse response = authService.socialLogin(oAuthLoginRequest, getPath(httpServletRequest));
+        return ResponseEntity.status(HttpStatusCode.valueOf(response.getStatus())).body(response);
+    }
+
+
+    @GetMapping("getData")
+    public String getData(){
+        RestTemplate restTemplate = new RestTemplate();
+
+        String url = "https://jsonplaceholder.typicode.com/posts/1";
+
+        log.info("external api called for url={}", url);
+
+        String response = restTemplate.getForObject(url, String.class);
+
+        return response;
+
+
+
+    }
 }
 

@@ -5,7 +5,6 @@ import com.localjobfinder.bakend.enums.JobTypeEnum;
 import lombok.Data;
 
 import java.math.BigDecimal;
-
 @Data
 public class JobCardDto {
     private Long id;
@@ -19,3 +18,4 @@ public class JobCardDto {
     private JobStatusEnum status;
     private Double distance;
 }
+

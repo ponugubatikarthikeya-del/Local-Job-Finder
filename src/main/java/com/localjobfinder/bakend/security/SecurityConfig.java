@@ -43,29 +43,10 @@ public class SecurityConfig {
                         .requestMatchers("/user/profiles/**").permitAll()
                         .requestMatchers("/user/job/**").permitAll()
                         .requestMatchers("/user/job/applications/**").permitAll()
-                        .requestMatchers("/user/job/filter/**").permitAll()
 
                         // Everything else → requires active JWT authentication validation tokens
                         .anyRequest().authenticated()
                 )
-
-//                .authorizeHttpRequests(auth -> auth
-//
-//                       // Public APIs - only authentication related endpoints
-//                       .requestMatchers(
-//                               "/user/auth/signup",
-//                               "/user/signupOtp-verification",
-//                               "/user/login",
-//                               "/user/refresh",
-//                               "/user/forgot-password",
-//                               "/user/verify-otp",
-//                               "/user/change-password",
-//                               "/user/sample"
-//                       ).permitAll()
-//
-//                       // Everything else → requires login
-//                       .anyRequest().authenticated()
-//                )
 
                 // Add JWT filter before default auth filter
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
