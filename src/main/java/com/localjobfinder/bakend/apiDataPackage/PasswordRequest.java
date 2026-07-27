@@ -5,7 +5,7 @@ import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 @Data
-public class ForgetPasswordRequest {
+public class PasswordRequest {
 
     @NotNull(message = "reset key required")
     private String resetKey ;

@@ -15,5 +15,7 @@ public class LoginRequest {
 
     @Size(min = 8, message = ExceptionConstants.LOGIN_PASSWORD)
     private String password;
-
+//
+//    @NotBlank(message = "device id is required")
+//    private String deviceId;
 }

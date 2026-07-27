@@ -9,6 +9,7 @@ public enum ErrorMsg {
     VAL_001("Bad request."),
     VAL_002("Validation failed."),
     VAL_003("Invalid input fields."),
+    VAL_004("invalid payload."),
 
     // 🔐 AUTHENTICATION ERRORS
     AUTH_001("Invalid credentials."),
@@ -25,6 +26,7 @@ public enum ErrorMsg {
     // 🔐 AUTHORIZATION ERRORS
     AUTHZ_001("Access denied."),
     AUTHZ_002("Insufficient permissions."),
+    AUTHZ_003("device id not found."),
 
     // ==========================================
     // AUTH & OAUTH ERROR CODES

@@ -61,7 +61,7 @@ public class ProfileController {
         return ResponseEntity.status(HttpStatusCode.valueOf(response.getStatus())).body(response);
     }
 
-    @PatchMapping("update")
+    @PutMapping("update")
     public ResponseEntity<ProfileResponse> updateProfile(
             @Valid @RequestBody EditProfileRequest editProfileRequest,HttpServletRequest httpServletRequest
     ) throws CustomException {

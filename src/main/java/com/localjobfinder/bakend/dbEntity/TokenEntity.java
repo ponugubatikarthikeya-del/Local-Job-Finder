@@ -10,7 +10,9 @@ import java.time.Instant;
 @Data
 @Entity
 @NoArgsConstructor
-@Table(name = "tokens", indexes = {
+@Table(name = "tokens",uniqueConstraints = {
+        @UniqueConstraint(name = "unique_user_device", columnNames = {"user_id", "device_id"})
+}, indexes = {
         @Index(name = "idx_users_otp_hash", columnList = "otp_hash"),
         @Index(name = "idx_tokens_user", columnList = "user_id"),
         @Index(name = "idx_users_hash_reset_key",columnList = "hash_reset_key")
@@ -27,13 +29,16 @@ public class TokenEntity {
     @JoinColumn(name = "user_id", nullable = false)
     private UserEntity user;
 
+    @Column(name = "device_id", nullable = false)
+    private String deviceId; // e.g. Android's Settings.Secure.ANDROID_ID or custom UUID generated on client
+
     @Column(name = "hash_refresh_token")
     private String hashRefreshToken;
 
     @Column(name = "hash_access_token")
     private String hashAccessToken;
 
-    @Column(name = "token_expires_at", nullable = false)
+    @Column(name = "token_expires_at")
     private Instant tokenExpiresAt;
 
     @Column(name = "hash_reset_key")

@@ -1,11 +1,13 @@
 package com.localjobfinder.bakend.exceptionPackage;
 
+import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
 import com.localjobfinder.bakend.enums.ErrorMsg;
 import com.localjobfinder.bakend.responsePackage.AuthResponse;
 import com.localjobfinder.bakend.utilsPackage.SecurityUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -121,5 +123,27 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(500).body(response);
     }
 
+
+    // user send extra fields as in request
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<AuthResponse> handleUnknownFields(HttpMessageNotReadableException ex, HttpServletRequest request) {
+        String errorMessage = "Malformed JSON request or unrecognized fields provided.";
+
+        // Extract exact field name if caused by UnrecognizedPropertyException
+        if (ex.getCause() instanceof UnrecognizedPropertyException unrecognizedEx) {
+            errorMessage = "Unrecognized field '" + unrecognizedEx.getPropertyName() + "' is not allowed.";
+        }
+
+        String safePath = SecurityUtils.sanitize(request.getRequestURI());
+
+        AuthResponse error = new AuthResponse(
+                400,
+                ErrorMsg.VAL_004.name(),
+                errorMessage,
+                safePath
+        );
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
 
 }

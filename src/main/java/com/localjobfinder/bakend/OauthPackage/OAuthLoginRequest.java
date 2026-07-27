@@ -12,4 +12,7 @@ public class OAuthLoginRequest {
     @NotBlank(message = "Provider name is required (e.g., google, github, facebook)")
     private String provider;
 
+//    @NotBlank(message = "device id is required")
+//    private String deviceId;
+
 }

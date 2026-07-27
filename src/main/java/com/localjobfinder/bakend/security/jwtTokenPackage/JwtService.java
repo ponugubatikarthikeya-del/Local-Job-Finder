@@ -20,8 +20,9 @@ public class JwtService {
     private String secretKey;
 
     // token expiration time
-    private static final long REFRESH_TOKEN_EXPIRATION = 1000 * 60 * 60 * 24 * 7; //86400000 * 7 for 7 days
+    private static final long REFRESH_TOKEN_EXPIRATION = 1000L * 60 * 60 * 24 * 180; //86400000 * 7 for 7 days
     private static final long ACCESS_TOKEN_EXPIRATION = 1000 * 60 * 60 * 24 ; // 24 hr
+//    private static final long ACCESS_TOKEN_EXPIRATION = 1000 * 60; // 1min hr
 
     // generate signing key
     private SecretKey getKey() {

@@ -18,6 +18,6 @@ CREATE TABLE jobs (
     CONSTRAINT fk_job_owner FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
-create index idx_jobs_location on jobs(latitude,longitude);
+CREATE INDEX idx_jobs_location on jobs(latitude,longitude);
 CREATE INDEX idx_jobs_status ON jobs(status);
 CREATE INDEX idx_jobs_created_at ON jobs(created_at);

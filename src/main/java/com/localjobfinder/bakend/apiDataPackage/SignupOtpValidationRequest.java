@@ -15,5 +15,8 @@ public class SignupOtpValidationRequest {
 
     @NotBlank(message = "otp is invalid")
     private String otp;
+//
+//    @NotBlank(message = "device id is required")
+//    private String deviceId;
 
 }

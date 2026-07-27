@@ -25,4 +25,7 @@ public class SignupRequest {
     @Size(min = 8,message = ExceptionConstants.SIGN_PASSWORD)
     private String password;
 
+//    @NotBlank(message = "device id is required")
+//    private String deviceId;
+
 }

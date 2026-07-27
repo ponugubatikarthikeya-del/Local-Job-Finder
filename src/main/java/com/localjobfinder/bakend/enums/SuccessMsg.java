@@ -10,7 +10,7 @@ public enum SuccessMsg {
     AUTH_201("Registration successful."),
     AUTH_202("Token refreshed successfully."),
     AUTH_203("Logout successful."),
-    AUTH_204("Email Send Successfully."),
+    AUTH_204("Otp Send to user email Successfully."),
     AUTH_205("Password reset successful."),
 
     // 👤 USER / PROFILE

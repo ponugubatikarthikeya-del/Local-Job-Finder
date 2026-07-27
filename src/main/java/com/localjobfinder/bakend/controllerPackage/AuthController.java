@@ -44,7 +44,9 @@ public class AuthController {
 
         log.info("signup api called for email={}", signupRequest.getEmail());
 
-        AuthResponse response = authService.signup(signupRequest, getPath(httpServletRequest));
+        String deviceId = httpServletRequest.getHeader("X-Device-Id");
+
+        AuthResponse response = authService.signup(signupRequest, getPath(httpServletRequest),deviceId);
 
         return ResponseEntity.status(HttpStatusCode.valueOf(response.getStatus())).body(response);
 
@@ -58,9 +60,25 @@ public class AuthController {
 
         log.info("signup otp api called for email={}", signupOtpValidationRequest.getEmail());
 
-        LoginResponse response = authService.signupOtpVerification(signupOtpValidationRequest,getPath(httpServletRequest));
+        String deviceId = httpServletRequest.getHeader("X-Device-Id");
+
+        LoginResponse response = authService.signupOtpVerification(signupOtpValidationRequest,getPath(httpServletRequest),deviceId);
         return ResponseEntity.status(HttpStatusCode.valueOf(response.getStatus())).body(response);
 
+    }
+
+    @PostMapping("resend-otp")
+    public ResponseEntity<AuthResponse> resendOtpVerification(
+            @Valid @RequestBody EmailCheckupRequest emailCheckupRequest,
+            HttpServletRequest httpServletRequest
+    ) throws CustomException {
+
+        log.info("resend otp api called for email={}", emailCheckupRequest.getEmail());
+
+        String deviceId = httpServletRequest.getHeader("X-Device-Id");
+
+        AuthResponse response = authService.resendOtp(emailCheckupRequest,getPath(httpServletRequest),deviceId);
+        return ResponseEntity.status(HttpStatusCode.valueOf(response.getStatus())).body(response);
     }
 
     //login api
@@ -70,7 +88,9 @@ public class AuthController {
 
         log.info("login api called for email={}", loginRequest.getEmail());
 
-        LoginResponse response = authService.login(loginRequest, getPath(httpServletRequest));
+        String deviceId = httpServletRequest.getHeader("X-Device-Id");
+
+        LoginResponse response = authService.login(loginRequest, getPath(httpServletRequest),deviceId);
 
         return ResponseEntity.status(HttpStatusCode.valueOf(response.getStatus())).body(response);
 
@@ -101,57 +121,40 @@ public class AuthController {
 
     // forget password email checkup
 
-    @PostMapping("forgot-password")
+    @PatchMapping("forgot-password")
     public ResponseEntity<AuthResponse> forgotEmailRequest(
-            @Valid @RequestBody ForgetPasswordEmailCheckupRequest forgetPasswordEmailCheckupRequest,
+            @Valid @RequestBody EmailCheckupRequest emailCheckupRequest,
             HttpServletRequest httpRequest) throws CustomException{
 
-        log.info("forgot password email request for email={}", forgetPasswordEmailCheckupRequest.getEmail());
+        log.info("forgot password email request for email={}", emailCheckupRequest.getEmail());
 
-        AuthResponse response = authService.forgetPasswordEmailRequest(forgetPasswordEmailCheckupRequest,getPath(httpRequest));
+        AuthResponse response = authService.forgetPasswordEmailRequest(emailCheckupRequest,getPath(httpRequest));
         return ResponseEntity.status(HttpStatusCode.valueOf(response.getStatus())).body(response);
     }
 
     // otp validate api
 
-    @PostMapping("verify-otp")
-    public ResponseEntity<AuthResponse> forgotPasswordOtpValidate(
+    @PatchMapping("reset-otp-verify")
+    public ResponseEntity<ResetKeyOtpResponse> forgotPasswordOtpValidate(
             @Valid @RequestBody ResetPasswordOtpValidateRequest resetPasswordOtpValidateRequest,
             HttpServletRequest httpRequest) throws CustomException {
         log.info("forgot password otp validate called for otp={}", resetPasswordOtpValidateRequest.getOtp());
 
-        AuthResponse response = authService.forgetPasswordOtpValidate(resetPasswordOtpValidateRequest,getPath(httpRequest));
+        ResetKeyOtpResponse response = authService.forgetPasswordOtpValidate(resetPasswordOtpValidateRequest,getPath(httpRequest));
         return ResponseEntity.status(HttpStatusCode.valueOf(response.getStatus())).body(response);
     }
 
     // change password api
 
-    @PostMapping("change-password")
+    @PatchMapping("change-password")
     public ResponseEntity<AuthResponse> forgetPasswordRequest
-            (@Valid @RequestBody ForgetPasswordRequest forgetPasswordRequest, HttpServletRequest httpRequest)
+            (@Valid @RequestBody PasswordRequest passwordRequest, HttpServletRequest httpRequest)
            throws CustomException {
-        log.info("reset password request called for resetKey={}", forgetPasswordRequest.getResetKey());
+        log.info("reset password request called for resetKey={}", passwordRequest.getResetKey());
 
-        AuthResponse response = authService.forgetPasswordRequest(forgetPasswordRequest,getPath(httpRequest));
+        AuthResponse response = authService.forgetPasswordRequest(passwordRequest,getPath(httpRequest));
         return ResponseEntity.status(HttpStatusCode.valueOf(response.getStatus())).body(response);
     }
-
-//    @GetMapping("sample")
-//    public ResponseEntity<UserResponse> sample(HttpServletRequest httpRequest) throws CustomException {
-//
-//        String username = "hey karthikeya you are very handsome";
-//
-//        UserResponse userResponse = new UserResponse(
-//                200,
-//                SuccessMsg.GEN_200.name(),
-//                SuccessMsg.GEN_200.getMessage(),
-//                getPath(httpRequest),
-//                username
-//        );
-//
-//        return ResponseEntity.status(HttpStatusCode.valueOf(userResponse.getStatus())).body(userResponse);
-//        }
-
 
     @PostMapping("social-login")
     public ResponseEntity<LoginResponse> socialLogin(
@@ -160,7 +163,9 @@ public class AuthController {
 
         log.info("Social Login initiated for provider={}", oAuthLoginRequest.getProvider());
 
-        LoginResponse response = authService.socialLogin(oAuthLoginRequest, getPath(httpServletRequest));
+        String deviceId = httpServletRequest.getHeader("X-Device-Id");
+
+        LoginResponse response = authService.socialLogin(oAuthLoginRequest, getPath(httpServletRequest),deviceId);
         return ResponseEntity.status(HttpStatusCode.valueOf(response.getStatus())).body(response);
     }
 
@@ -176,8 +181,6 @@ public class AuthController {
         String response = restTemplate.getForObject(url, String.class);
 
         return response;
-
-
 
     }
 }

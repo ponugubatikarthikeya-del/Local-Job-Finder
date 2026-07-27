@@ -13,15 +13,17 @@ public class RefreshTokenResponse {
     private final String message;
     private final String path;
     private final String accessToken;
+    private final String refreshToken;
 
     public RefreshTokenResponse(int status, String errorCode,
-                         String message, String path, String accessToken) {
+                         String message, String path, String accessToken, String refreshToken) {
         this.timestamp = Instant.now();
         this.status = status;
         this.errorCode = errorCode;
         this.message = message;
         this.path = path;
         this.accessToken = accessToken;
+        this.refreshToken = refreshToken;
     }
 
 }

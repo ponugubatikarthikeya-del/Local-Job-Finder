@@ -9,7 +9,16 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface RefreshTokenRepository extends JpaRepository<TokenEntity, Long> {
+public interface TokenRepository extends JpaRepository<TokenEntity, Long> {
+
+    Optional<TokenEntity> findByUserAndDeviceId(UserEntity user, String deviceId);
+
     List<TokenEntity> findByUser(UserEntity user);
+
     Optional<TokenEntity> findByHashResetKey(String hashResetKey);
+
+    void deleteByUserAndDeviceId(UserEntity user, String deviceId); // it used in when user clicks logout on their phone
+
+    void deleteByUser(UserEntity user);  // it used in when user clicks logout to all phones
+
 }
