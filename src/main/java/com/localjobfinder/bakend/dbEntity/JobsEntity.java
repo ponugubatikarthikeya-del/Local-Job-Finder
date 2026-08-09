@@ -7,6 +7,7 @@ import jakarta.persistence.*;
 import lombok.Data;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDateTime;
 
 @Data
@@ -60,12 +61,12 @@ public class JobsEntity {
     private JobStatusEnum status;
 
     @Column(name = "job_time")
-    private LocalDateTime jobTime;
+    private Instant jobTime;
 
     @Column(name = "created_at", updatable = false, insertable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt = Instant.now();
 
     @Column(name = "updated_at", insertable = false, updatable = false)
-    private LocalDateTime updatedAt;
+    private Instant updatedAt ;
 
 }

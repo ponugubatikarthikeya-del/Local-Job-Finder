@@ -2,6 +2,7 @@ package com.localjobfinder.bakend.servicePackage;
 
 import com.localjobfinder.bakend.apiDataPackage.AddressTakeRequest;
 import com.localjobfinder.bakend.apiDataPackage.EditProfileRequest;
+import com.localjobfinder.bakend.dbEntity.JobsEntity;
 import com.localjobfinder.bakend.dbEntity.ProfilesEntity;
 import com.localjobfinder.bakend.dbEntity.UserEntity;
 import com.localjobfinder.bakend.dtoPackage.PublicProfileDto;
@@ -9,6 +10,7 @@ import com.localjobfinder.bakend.dtoPackage.UserDto;
 import com.localjobfinder.bakend.enums.ErrorMsg;
 import com.localjobfinder.bakend.enums.SuccessMsg;
 import com.localjobfinder.bakend.exceptionPackage.CustomException;
+import com.localjobfinder.bakend.repository.JobsRepository;
 import com.localjobfinder.bakend.repository.UserRepository;
 import com.localjobfinder.bakend.responsePackage.AuthResponse;
 import com.localjobfinder.bakend.responsePackage.MyProfileResponse;
@@ -32,13 +34,15 @@ public class ProfileService implements ProfileServiceInterface {
 
     private UserRepository userRepository;
     private ModelMapper modelMapper;
+    private JobsRepository jobsRepository;
 
 
     @Autowired
-    public void setUserRepository(UserRepository userRepository, ModelMapper modelMapper)
+    public void setUserRepository(UserRepository userRepository, ModelMapper modelMapper, JobsRepository jobsRepository)
     {
         this.userRepository = userRepository;
         this.modelMapper = modelMapper;
+        this.jobsRepository = jobsRepository;
     }
 
     // get user details by path variable user id
@@ -94,13 +98,21 @@ public class ProfileService implements ProfileServiceInterface {
 
     @Override
     @Transactional(readOnly = true)
-    public MyProfileResponse getPublicProfile(Long userId, String path) throws CustomException {
+    public MyProfileResponse getPublicProfile(Long jobId, String path) throws CustomException {
 
-        if(userId == null){
+        if(jobId == null){
             throw new CustomException(ErrorMsg.AUTH_004,400);
         }
 
-        Optional<UserEntity> userEntity = userRepository.findById(userId);
+        Optional<JobsEntity> jobsEntity = jobsRepository.findById(jobId);
+
+        if(jobsEntity.isEmpty()){
+            throw new CustomException(ErrorMsg.BUS_008,404);
+        }
+
+        JobsEntity job = jobsEntity.get();
+
+        Optional<UserEntity> userEntity = userRepository.findById(job.getUser().getId());
 
         if(userEntity.isEmpty()){
             throw new CustomException(ErrorMsg.AUTH_008,404);
@@ -136,17 +148,13 @@ public class ProfileService implements ProfileServiceInterface {
     @Transactional
     public ProfileResponse updateProfile(Long userId, String path, EditProfileRequest request) throws CustomException {
 
-        if(userId == null){
-            throw new CustomException(ErrorMsg.AUTH_004,400);
+        if (userId == null) {
+            throw new CustomException(ErrorMsg.AUTH_004, 400);
         }
 
-        Optional<UserEntity> userEntity = userRepository.findById(userId);
-
-        if(userEntity.isEmpty()){
-            throw new CustomException(ErrorMsg.AUTH_008,400);
-        }
-
-        UserEntity user = userEntity.get();
+        // Use a clean custom exception if user isn't found
+        UserEntity user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorMsg.AUTH_008, 400));
 
         // 2. Dynamically apply updates to the parent UserEntity
         if (request.getUsername() != null && !request.getUsername().isBlank()) {
@@ -156,14 +164,12 @@ public class ProfileService implements ProfileServiceInterface {
             user.setPhone(request.getPhone());
         }
 
-        // 3. Extract the linked profile entity
+        // 3. Extract the linked profile entity (JPA will now load the existing row correctly)
         ProfilesEntity profile = user.getProfile();
 
         if (profile == null) {
-            // Defensive check: If no profile exists for some reason, instantiate a fresh one linked to the user
             profile = new ProfilesEntity();
-            profile.setUser(user);
-            user.setProfile(profile);
+            user.setProfile(profile); // Triggers our helper to link both sides
         }
 
         // 4. Dynamically apply updates to the child ProfilesEntity
@@ -179,17 +185,82 @@ public class ProfileService implements ProfileServiceInterface {
         if (request.getUserDescription() != null) {
             profile.setUserDescription(request.getUserDescription());
         }
+        if (request.getDateOfBirth() != null) {
+            profile.setDateOfBirth(request.getDateOfBirth());
+        }
 
-        // 5. Commit state. CascadeType.ALL handles propagating updates down to the profile record automatically.
-        userRepository.save(user);
+        // NOTE: userRepository.save(user) removed. @Transactional handles the UPDATE query automatically.
 
         return new ProfileResponse(
-                201,
+                200, // Changed to 200 OK since we are modifying an existing profile, not creating one (201)
                 SuccessMsg.USER_202.name(),
                 SuccessMsg.USER_202.getMessage(),
                 path
         );
     }
+
+
+//    @Override
+//    @Transactional
+//    public ProfileResponse updateProfile(Long userId, String path, EditProfileRequest request) throws CustomException {
+//
+//        if(userId == null){
+//            throw new CustomException(ErrorMsg.AUTH_004,400);
+//        }
+//
+//        Optional<UserEntity> userEntity = userRepository.findById(userId);
+//
+//        if(userEntity.isEmpty()){
+//            throw new CustomException(ErrorMsg.AUTH_008,400);
+//        }
+//
+//        UserEntity user = userEntity.get();
+//
+//        // 2. Dynamically apply updates to the parent UserEntity
+//        if (request.getUsername() != null && !request.getUsername().isBlank()) {
+//            user.setUsername(request.getUsername());
+//        }
+//        if (request.getPhone() != null && !request.getPhone().isBlank()) {
+//            user.setPhone(request.getPhone());
+//        }
+//
+//        // 3. Extract the linked profile entity
+//        ProfilesEntity profile = user.getProfile();
+//
+//        if (profile == null) {
+//            // Defensive check: If no profile exists for some reason, instantiate a fresh one linked to the user
+//            profile = new ProfilesEntity();
+//            profile.setUser(user);
+//            user.setProfile(profile);
+//        }
+//
+//        // 4. Dynamically apply updates to the child ProfilesEntity
+//        if (request.getHeadline() != null) {
+//            profile.setHeadline(request.getHeadline());
+//        }
+//        if (request.getSkills() != null) {
+//            profile.setSkills(request.getSkills());
+//        }
+//        if (request.getCityName() != null) {
+//            profile.setCityName(request.getCityName());
+//        }
+//        if (request.getUserDescription() != null) {
+//            profile.setUserDescription(request.getUserDescription());
+//        }
+//        if(request.getDateOfBirth() != null){
+//            profile.setDateOfBirth(request.getDateOfBirth());
+//        }
+//
+//        // 5. Commit state. CascadeType.ALL handles propagating updates down to the profile record automatically.
+//        userRepository.save(user);
+//
+//        return new ProfileResponse(
+//                201,
+//                SuccessMsg.USER_202.name(),
+//                SuccessMsg.USER_202.getMessage(),
+//                path
+//        );
+//    }
 
     @Override
     @Transactional
@@ -218,6 +289,8 @@ public class ProfileService implements ProfileServiceInterface {
         }
 
         profilesEntity.setCityName(addressTakeRequest.getCityName());
+        profilesEntity.setLatitude(addressTakeRequest.getLatitude());
+        profilesEntity.setLongitude(addressTakeRequest.getLongitude());
         userRepository.save(user);
 
         return new ProfileResponse(

@@ -3,7 +3,7 @@ package com.localjobfinder.bakend.dbEntity;
 import jakarta.persistence.*;
 import lombok.Data;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Data
 @Entity
@@ -37,6 +37,6 @@ public class ReviewEntity {
     private String comment;
 
     @Column(name = "created_at", updatable = false, insertable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt = Instant.now();
 
 }

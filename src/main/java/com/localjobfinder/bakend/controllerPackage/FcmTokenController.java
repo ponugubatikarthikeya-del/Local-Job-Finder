@@ -52,19 +52,19 @@ public class FcmTokenController {
         return ResponseEntity.status(HttpStatusCode.valueOf(response.getStatus())).body(response);
     }
 
-    @PostMapping("/logout")
-    public ResponseEntity<AuthResponse> logoutToken(
-            @RequestBody FcmTokenRequest request,
-            HttpServletRequest httpServletRequest) throws CustomException {
-
-        Long currentUserId = jwtSecurityService.getCurrentUserId();
-
-        log.info("logoutFcmToken api called for email={}",currentUserId);
-
-        AuthResponse authResponse = fcmTokenService
-                .removeTokenOnLogout(currentUserId,request.getDeviceFcmToken(),getPath(httpServletRequest));
-
-        return ResponseEntity.status(HttpStatusCode.valueOf(authResponse.getStatus())).body(authResponse);
-    }
+//    @PostMapping("/logout")
+//    public ResponseEntity<AuthResponse> logoutToken(
+//            @RequestBody FcmTokenRequest request,
+//            HttpServletRequest httpServletRequest) throws CustomException {
+//
+//        Long currentUserId = jwtSecurityService.getCurrentUserId();
+//
+//        log.info("logoutFcmToken api called for email={}",currentUserId);
+//
+//        AuthResponse authResponse = fcmTokenService
+//                .removeTokenOnLogout(currentUserId,request.getDeviceFcmToken(),getPath(httpServletRequest));
+//
+//        return ResponseEntity.status(HttpStatusCode.valueOf(authResponse.getStatus())).body(authResponse);
+//    }
 
 }

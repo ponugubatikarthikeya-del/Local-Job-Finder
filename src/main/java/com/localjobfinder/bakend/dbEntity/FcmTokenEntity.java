@@ -4,6 +4,9 @@ import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.Data;
 
+import java.time.Instant;
+import java.util.Date;
+
 @Entity
 @Table(name = "user_fcm_tokens")
 @Data
@@ -19,4 +22,7 @@ public class FcmTokenEntity {
 
     @Column(name = "device_token", nullable = false, unique = true)
     private String deviceToken;
+
+    @Column(name = "updated_at",nullable = false)
+    private Instant updatedAt ;
 }

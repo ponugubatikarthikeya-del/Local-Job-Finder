@@ -6,14 +6,13 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
 import org.springframework.scheduling.annotation.Async;
-import org.springframework.stereotype.Service;
 
 @Service
-public class ForgetEmailSend {
+public class EmailSend {
 
-    private JavaMailSender javaMailSender;
+    private final JavaMailSender javaMailSender;
 
-    public ForgetEmailSend(JavaMailSender javaMailSender) {
+    public EmailSend(JavaMailSender javaMailSender) {
         this.javaMailSender = javaMailSender;
     }
 

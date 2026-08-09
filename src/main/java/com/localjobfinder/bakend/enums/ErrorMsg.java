@@ -59,6 +59,7 @@ public enum ErrorMsg {
     BUS_005("Invalid job state."),
     BUS_006("Profile is incomplete."),
     BUS_007("Access denied for this resource."),
+    BUS_008("Invalid Job."),
 
     // ⚙️ SYSTEM ERRORS
     SYS_001("Database error occurred."),
@@ -72,7 +73,9 @@ public enum ErrorMsg {
     JOB_003("You have already submitted a review for this job workspace."),
     JOB_004("No active worker placement records found for this workspace."),
 
-    RREVIW_001("Access Denied: You are not authorized to review this job performance.");
+    RREVIW_001("Access Denied: You are not authorized to review this job performance."),
+
+    DEVICE_001("Device ID is required for authentication");
 
     private final String message;
 

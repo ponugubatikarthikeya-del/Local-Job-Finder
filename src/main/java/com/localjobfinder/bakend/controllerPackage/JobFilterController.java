@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -51,7 +52,7 @@ public class JobFilterController {
             HttpServletRequest httpServletRequest
     ) throws CustomException {
 
-        log.info("getAllJobs api called with lat={}, lng={}, radius={}", lat, lng, radius);
+        log.info("getActiveJobs api called with lat={}, lng={}, radius={}", lat, lng, radius);
 
         if (lat == null || lng == null) {
             throw new CustomException(ErrorMsg.BUS_001, 400, "latitude and longitude are required");
@@ -72,12 +73,12 @@ public class JobFilterController {
 
     @GetMapping("getMyJobs")
     public ResponseEntity<AllJobsResponse> getMyJobs(
-            HttpServletRequest httpServletRequest,
             @RequestParam(value = "page", defaultValue = "0") int page,
-            @RequestParam(value = "size", defaultValue = "20") int size
+            @RequestParam(value = "size", defaultValue = "20") int size,
+            HttpServletRequest httpServletRequest
     ) throws CustomException {
 
-        log.info("getJobs api called");
+        log.info("getMyJobs api called");
 
         Long userId = jwtSecurityService.getCurrentUserId();
 
@@ -90,14 +91,14 @@ public class JobFilterController {
     }
 
 
-    @GetMapping("jobs/search")
+    @GetMapping("search")
     public ResponseEntity<AllJobsResponse> searchJobs(
             @RequestParam("lat") BigDecimal lat,
             @RequestParam("lng") BigDecimal lng,
-            @RequestParam(value = "radius", defaultValue = "20.0") Double radius,
+            @RequestParam(value = "radius", defaultValue = "100.0") Double radius,
             @RequestParam(value = "search", required = false) String search,
             @RequestParam(value = "category", required = false) String category,
-            @org.springframework.data.web.PageableDefault(size = 20, sort = "distance") Pageable pageable,
+            @org.springframework.data.web.PageableDefault(size = 20) Pageable pageable, // FIXED: Removed sort string mapping here
             HttpServletRequest httpServletRequest
     ) throws CustomException {
 

@@ -50,13 +50,13 @@ public class ProfileController {
     }
 
 
-    @GetMapping("public/{userId}")
+    @GetMapping("public-profile/{jobId}")
     public ResponseEntity<MyProfileResponse> getPublicProfile(
-            @PathVariable Long userId, HttpServletRequest httpServletRequest) throws CustomException {
+            @PathVariable Long jobId, HttpServletRequest httpServletRequest) throws CustomException {
 
-        log.info("public profile api called for id={}",userId);
+        log.info("public profile api called for id={}",jobId);
 
-        MyProfileResponse response = profileService.getPublicProfile(userId, getPath(httpServletRequest));
+        MyProfileResponse response = profileService.getPublicProfile(jobId, getPath(httpServletRequest));
 
         return ResponseEntity.status(HttpStatusCode.valueOf(response.getStatus())).body(response);
     }

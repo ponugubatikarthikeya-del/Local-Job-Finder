@@ -6,15 +6,14 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Data
-@NoArgsConstructor
-@AllArgsConstructor
 public class PublicProfileDto {
     private Long id;
     private String username;
     private String headline;
-    private String skills;
+    private List<String> skills;
     private String cityName;
     private BigDecimal rating;
     private Integer totalJobsCompleted;

@@ -29,7 +29,7 @@ public class TokenEntity {
     @JoinColumn(name = "user_id", nullable = false)
     private UserEntity user;
 
-    @Column(name = "device_id", nullable = false)
+    @Column(name = "device_id", nullable = false,unique = true)
     private String deviceId; // e.g. Android's Settings.Secure.ANDROID_ID or custom UUID generated on client
 
     @Column(name = "hash_refresh_token")
@@ -54,5 +54,5 @@ public class TokenEntity {
     private boolean revoked;
 
     @Column(name = "created_at", insertable = false, updatable = false)
-    private Instant createdAt;
+    private Instant createdAt = Instant.now();
 }

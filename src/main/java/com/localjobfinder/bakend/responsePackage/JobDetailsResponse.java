@@ -1,6 +1,6 @@
 package com.localjobfinder.bakend.responsePackage;
 
-import com.localjobfinder.bakend.dtoPackage.CompleteJobDto;
+import com.localjobfinder.bakend.dtoPackage.JobDto;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -13,5 +13,5 @@ public class JobDetailsResponse {
     private String errorName;
     private String message;
     private String path;
-    private CompleteJobDto jobDetails;
+    private JobDto jobDetails;
 }

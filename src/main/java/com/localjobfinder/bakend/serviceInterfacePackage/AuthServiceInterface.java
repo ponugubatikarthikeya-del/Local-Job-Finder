@@ -32,4 +32,6 @@ public interface AuthServiceInterface {
             PasswordRequest passwordRequest, String request) throws CustomException;
 
     public LoginResponse socialLogin (OAuthLoginRequest oAuthLoginRequest, String request,String deviceId) throws CustomException;
+
+    public AuthResponse logout(Long userId,String DeviceId,boolean allDevices,String request,FcmTokenRequest fcmTokenRequest) throws CustomException;
 }

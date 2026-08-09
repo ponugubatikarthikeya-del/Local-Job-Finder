@@ -16,6 +16,6 @@ public interface JobServiceInterface {
 
     public JobResponse jobComplete(Long userId, Long jobId, String path) throws CustomException;
 
-    public JobDetailsResponse getJobDetails(String path, Long userId, Long jobId) throws CustomException;
+//    public JobDetailsResponse getJobDetails(String path, Long userId, Long jobId) throws CustomException;
 
 }

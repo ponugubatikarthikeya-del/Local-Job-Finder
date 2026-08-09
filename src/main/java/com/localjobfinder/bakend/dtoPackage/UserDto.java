@@ -4,6 +4,7 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 
 @Data
 public class UserDto {
@@ -12,7 +13,7 @@ public class UserDto {
    private String email;
    private String phone;
    private String headline;
-   private String skills;
+   private List<String> skills;
    private String dateOfBirth;
    private String cityName;
    private BigDecimal rating;

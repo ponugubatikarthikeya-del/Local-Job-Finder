@@ -3,8 +3,10 @@ package com.localjobfinder.bakend.dbEntity;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Data
 @Entity
@@ -20,6 +22,7 @@ public class ActiveJobsListEntity {
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "job_id", nullable = false)
     @JsonIgnore // We usually don't want to reserialize the whole job inside the listing
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private JobsEntity job;
 
     // CONNECTION 2: Links to the Owner (User)
@@ -29,6 +32,6 @@ public class ActiveJobsListEntity {
     private UserEntity owner;
 
     @Column(name = "created_at", insertable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
 }

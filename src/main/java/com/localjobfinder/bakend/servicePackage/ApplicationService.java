@@ -1,6 +1,5 @@
 package com.localjobfinder.bakend.servicePackage;
 
-import com.localjobfinder.bakend.components.GeometryUtils;
 import com.localjobfinder.bakend.dbEntity.ApplicationJobsEntity;
 import com.localjobfinder.bakend.dbEntity.JobsEntity;
 import com.localjobfinder.bakend.dbEntity.UserEntity;
@@ -10,9 +9,9 @@ import com.localjobfinder.bakend.enums.ErrorMsg;
 import com.localjobfinder.bakend.enums.JobStatusEnum;
 import com.localjobfinder.bakend.enums.SuccessMsg;
 import com.localjobfinder.bakend.exceptionPackage.CustomException;
-import com.localjobfinder.bakend.notification.JobAcceptNotificationDto;
-import com.localjobfinder.bakend.notification.JobApplyNotificationDto;
-import com.localjobfinder.bakend.notification.JobNotificationEvent;
+import com.localjobfinder.bakend.notification.job.JobAcceptNotificationDto;
+import com.localjobfinder.bakend.notification.job.JobApplyNotificationDto;
+import com.localjobfinder.bakend.notification.job.JobNotificationEvent;
 import com.localjobfinder.bakend.repository.*;
 import com.localjobfinder.bakend.responsePackage.JobResponse;
 import com.localjobfinder.bakend.responsePackage.ViewApplicantsResponse;

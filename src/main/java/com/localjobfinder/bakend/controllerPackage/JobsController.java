@@ -2,7 +2,6 @@ package com.localjobfinder.bakend.controllerPackage;
 
 import com.localjobfinder.bakend.apiDataPackage.PostJobRequest;
 import com.localjobfinder.bakend.exceptionPackage.CustomException;
-import com.localjobfinder.bakend.responsePackage.JobDetailsResponse;
 import com.localjobfinder.bakend.responsePackage.JobResponse;
 import com.localjobfinder.bakend.responsePackage.UserResponse;
 import com.localjobfinder.bakend.security.jwtTokenPackage.JwtSecurityService;
@@ -67,7 +66,7 @@ public class JobsController {
     }
 
 
-    @PatchMapping("job-completed/{JobId}")
+    @PatchMapping("job-completed/{jobId}")
     public ResponseEntity<JobResponse> jobComplete(
             @PathVariable Long jobId,
             HttpServletRequest httpServletRequest
@@ -81,21 +80,21 @@ public class JobsController {
         return ResponseEntity.status(HttpStatusCode.valueOf(response.getStatus())).body(response);
     }
 
-    @GetMapping("job-details/{jobId}")
-    public ResponseEntity<JobDetailsResponse> getJobDetails(
-            @PathVariable("jobId") Long jobId,
-            HttpServletRequest httpServletRequest
-    ) throws CustomException {
-
-        log.info("getJobDetails api called for jobId={}", jobId);
-
-        String path = getPath(httpServletRequest);
-        Long userId = jwtSecurityService.getCurrentUserId();
-
-        JobDetailsResponse response = jobService.getJobDetails(path, userId, jobId);
-
-        return ResponseEntity.status(HttpStatusCode.valueOf(response.getStatus())).body(response);
-    }
+//    @GetMapping("job-details/{jobId}")
+//    public ResponseEntity<JobDetailsResponse> getJobDetails(
+//            @PathVariable("jobId") Long jobId,
+//            HttpServletRequest httpServletRequest
+//    ) throws CustomException {
+//
+//        log.info("getJobDetails api called for jobId={}", jobId);
+//
+//        String path = getPath(httpServletRequest);
+//        Long userId = jwtSecurityService.getCurrentUserId();
+//
+//        JobDetailsResponse response = jobService.getJobDetails(path, userId, jobId);
+//
+//        return ResponseEntity.status(HttpStatusCode.valueOf(response.getStatus())).body(response);
+//    }
 
 
 }

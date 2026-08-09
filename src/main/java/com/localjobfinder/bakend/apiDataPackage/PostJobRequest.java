@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDateTime;
 
 
@@ -36,6 +37,6 @@ public class PostJobRequest {
     private String address;
 
     @NotNull(message = "job time is required")
-    private LocalDateTime jobTime;
+    private Instant jobTime;
 
 }

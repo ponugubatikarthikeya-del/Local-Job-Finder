@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.HashMap;
 import java.util.Map;
 
 @Service
@@ -24,7 +25,11 @@ public class FirebaseConfiguration {
 
     private static final Logger log = LoggerFactory.getLogger(FirebaseConfiguration.class);
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+//    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    // Convert numbers and primitives to Strings automatically for FCM
+    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
+
 
     @Value("${firebase.config.path}")
     private String firebaseConfigPath;
@@ -58,6 +63,7 @@ public class FirebaseConfiguration {
         }
     }
 
+
     public void sendPushNotification(String fcmToken, String title, String body, String type, Object payload) {
         try {
             Notification notification = Notification.builder()
@@ -65,11 +71,30 @@ public class FirebaseConfiguration {
                     .setBody(body)
                     .build();
 
-            // Convert DTO details payload into a flat Map<String, String> for FCM
-            Map<String, String> dataMap = objectMapper.convertValue(payload, new TypeReference<Map<String, String>>() {});
+            Map<String, String> dataMap = new HashMap<>();
 
             // Inject administrative click routing flags
             dataMap.put("notification_type", type);
+
+            // 2. Map and parse dynamic object properties safely
+            if (payload != null) {
+                Map<String, Object> rawMap = objectMapper.convertValue(payload, new TypeReference<>() {});
+
+                for (Map.Entry<String, Object> entry : rawMap.entrySet()) {
+                    Object value = entry.getValue();
+                    if (value == null) continue;
+
+                    // 💡 CRUCIAL FIX: Catch floats or doubles (like duration metrics), round them, and pass as Integer string
+                    if (value instanceof Double || value instanceof Float) {
+                        double doubleValue = ((Number) value).doubleValue();
+                        long roundedValue = Math.round(doubleValue);
+                        dataMap.put(entry.getKey(), String.valueOf(roundedValue));
+                    } else {
+                        // Standard numbers and strings map cleanly across the wire
+                        dataMap.put(entry.getKey(), String.valueOf(value));
+                    }
+                }
+            }
 
             Message message = Message.builder()
                     .setToken(fcmToken)
@@ -84,3 +109,4 @@ public class FirebaseConfiguration {
         }
     }
 }
+

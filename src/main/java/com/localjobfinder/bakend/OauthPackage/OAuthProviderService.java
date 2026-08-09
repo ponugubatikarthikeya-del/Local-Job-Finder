@@ -46,11 +46,16 @@ public class OAuthProviderService {
             if (payload == null) {
                 throw new CustomException(ErrorMsg.OAUTH_005, 401);
             }
+
+
+            boolean isEmailVerified = Boolean.TRUE.equals(payload.getEmailVerified());
+
             return new OAuthUserDto(
                     payload.getSubject(),
                     payload.getEmail(),
                     (String) payload.get("name"),
-                    AuthLoginEnum.GOOGLE
+                    AuthLoginEnum.GOOGLE,
+                    isEmailVerified
             );
         } catch (Exception e) {
             throw new CustomException(ErrorMsg.OAUTH_006, 401);
@@ -85,17 +90,24 @@ public class OAuthProviderService {
                 name = (String) body.get("login");
             }
 
-            String email = (String) body.get("email");
+            GitHubEmailInfo emailInfo = fetchGitHubPrimaryEmail(request);
 
-            if (email == null || email.isBlank()) {
-                email = fetchGitHubPrimaryEmail(request);
+            String email = (String) body.get("email");
+            boolean isEmailVerified = false;
+
+            if (emailInfo != null && emailInfo.getEmail() != null) {
+                email = emailInfo.getEmail();
+                isEmailVerified = emailInfo.isVerified();
+            } else if (email != null && !email.isBlank()) {
+                // Public email fallback
+                isEmailVerified = true;
             }
 
             if (email == null || email.isBlank()) {
                 throw new CustomException(ErrorMsg.OAUTH_008, 400);
             }
 
-            return new OAuthUserDto(githubId, email, name, AuthLoginEnum.GITHUB);
+            return new OAuthUserDto(githubId, email, name, AuthLoginEnum.GITHUB,isEmailVerified);
         } catch (CustomException ce) {
             throw ce;
         } catch (Exception e) {
@@ -103,21 +115,22 @@ public class OAuthProviderService {
         }
     }
 
-    private String fetchGitHubPrimaryEmail(HttpEntity<Void> request) {
+    private GitHubEmailInfo fetchGitHubPrimaryEmail(HttpEntity<Void> request) {
         try {
             ResponseEntity<List<Map<String, Object>>> emailsResponse = restTemplate.exchange(
                     "https://api.github.com/user/emails",
                     HttpMethod.GET,
                     request,
-                    new ParameterizedTypeReference<>() {
-                    }
+                    new ParameterizedTypeReference<>() {}
             );
 
             List<Map<String, Object>> emailList = emailsResponse.getBody();
             if (emailList != null) {
-                for (Map<String, Object> emailInfo : emailList) {
-                    if (Boolean.TRUE.equals(emailInfo.get("primary"))) {
-                        return (String) emailInfo.get("email");
+                for (Map<String, Object> emailData : emailList) {
+                    if (Boolean.TRUE.equals(emailData.get("primary"))) {
+                        String email = (String) emailData.get("email");
+                        boolean verified = Boolean.TRUE.equals(emailData.get("verified"));
+                        return new GitHubEmailInfo(email, verified);
                     }
                 }
             }
@@ -146,7 +159,14 @@ public class OAuthProviderService {
             String name = (String) body.get("name");
             String email = (String) body.get("email");
 
-            return new OAuthUserDto(fbId, email, name, AuthLoginEnum.FACEBOOK);
+            if(email == null  || email.isBlank()) {
+                throw new CustomException(ErrorMsg.OAUTH_008, 400);
+            }
+
+            // Facebook Graph API only returns an email address if it has been verified by the user
+            boolean isEmailVerified = true;
+
+            return new OAuthUserDto(fbId, email, name, AuthLoginEnum.FACEBOOK, isEmailVerified);
         } catch (Exception e) {
             throw new CustomException(ErrorMsg.OAUTH_011, 401);
         }

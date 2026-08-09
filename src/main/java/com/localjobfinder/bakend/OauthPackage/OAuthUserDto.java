@@ -12,4 +12,5 @@ public class OAuthUserDto {
     private String email;
     private String name;
     private AuthLoginEnum providerName; // "GOOGLE", "GITHUB", "FACEBOOK"
+    private boolean isEmailVerified;
 }

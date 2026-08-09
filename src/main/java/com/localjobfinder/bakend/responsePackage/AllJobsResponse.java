@@ -1,6 +1,6 @@
 package com.localjobfinder.bakend.responsePackage;
 
-import com.localjobfinder.bakend.dtoPackage.JobCardDto;
+import com.localjobfinder.bakend.dtoPackage.JobDto;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
@@ -16,7 +16,7 @@ public class AllJobsResponse {
     private final String errorCode;
     private final String message;
     private final String path;
-    private final List<JobCardDto> allJobs;
+    private final List<JobDto> allJobs;
 
     // Pagination Metadata fields for Mobile UI client management
     private long totalElements;
@@ -25,7 +25,7 @@ public class AllJobsResponse {
     private boolean isLast;
 
     public AllJobsResponse(int status, String errorCode,
-                           String message, String path, List<JobCardDto> allJobs) {
+                           String message, String path, List<JobDto> allJobs) {
         this.timestamp = Instant.now();
         this.status = status;
         this.errorCode = errorCode;

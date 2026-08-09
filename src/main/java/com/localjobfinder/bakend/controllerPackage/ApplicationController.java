@@ -44,6 +44,7 @@ public class ApplicationController {
         log.info("applyJob api called for jobId={}", jobId);
 
         Long userId = jwtSecurityService.getCurrentUserId();
+
         log.debug("authenticated userId={}", userId);
 
         JobResponse userResponse = applicationService.applyJob(getPath(httpServletRequest), userId, jobId);
@@ -54,9 +55,9 @@ public class ApplicationController {
     @GetMapping("viewApplicants/{jobId}")
     public ResponseEntity<ViewApplicantsResponse> viewApplicants(
             @PathVariable Long jobId,
-            HttpServletRequest httpServletRequest,
             @RequestParam(value = "page", defaultValue = "0") int page,
-            @RequestParam(value = "size", defaultValue = "20") int size
+            @RequestParam(value = "size", defaultValue = "20") int size,
+            HttpServletRequest httpServletRequest
     ) throws CustomException {
 
         log.info("viewApplicants api called for jobId={}", jobId);

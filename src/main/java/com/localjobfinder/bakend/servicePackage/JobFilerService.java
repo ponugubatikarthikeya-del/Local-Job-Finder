@@ -4,7 +4,7 @@ import com.localjobfinder.bakend.components.GeometryUtils;
 import com.localjobfinder.bakend.dbEntity.JobsEntity;
 import com.localjobfinder.bakend.dbEntity.ProfilesEntity;
 import com.localjobfinder.bakend.dbEntity.UserEntity;
-import com.localjobfinder.bakend.dtoPackage.JobCardDto;
+import com.localjobfinder.bakend.dtoPackage.JobDto;
 import com.localjobfinder.bakend.enums.ErrorMsg;
 import com.localjobfinder.bakend.enums.SuccessMsg;
 import com.localjobfinder.bakend.exceptionPackage.CustomException;
@@ -50,7 +50,7 @@ public class JobFilerService implements JobFilterServiceInterface {
 
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public AllJobsResponse getActiveJobs(BigDecimal lat, BigDecimal lng, Double radius, String path, Long userId, Pageable pageable) throws CustomException {
         if (path == null || lat == null || lng == null) {
             throw new CustomException(ErrorMsg.BUS_001, 400, "Search location vectors cannot be null");
@@ -67,6 +67,7 @@ public class JobFilerService implements JobFilterServiceInterface {
                     .orElseThrow(() -> new CustomException(ErrorMsg.AUTH_008, 404, "User not found"));
 
             ProfilesEntity profilesEntity = user.getProfile();
+
             if (profilesEntity != null) {
                 profilesEntity.setLatitude(lat);
                 profilesEntity.setLongitude(lng);
@@ -75,9 +76,11 @@ public class JobFilerService implements JobFilterServiceInterface {
 
             Page<NearbyJobProjection> dynamicPageResult = activeJobsListRepository.findNearbyActiveJobs(lat, lng, radius, pageable);
 
-            List<JobCardDto> jobsList = dynamicPageResult.getContent().stream().map(jobProjection -> {
-                JobCardDto cardDto = modelMapper.map(jobProjection, JobCardDto.class);
-                cardDto.setUsername(user.getUsername());
+            List<JobDto> jobsList = dynamicPageResult.getContent().stream().map(jobProjection -> {
+                JobDto cardDto = modelMapper.map(jobProjection, JobDto.class);
+                cardDto.setUserId(jobProjection.getUserId());
+                cardDto.setUsername(jobProjection.getUsername());
+
                 Double rawDistance = jobProjection.getDistance();
                 cardDto.setDistance(rawDistance != null ? Math.round(rawDistance * 100.0) / 100.0 : 0.0);
                 return cardDto;
@@ -91,7 +94,7 @@ public class JobFilerService implements JobFilterServiceInterface {
 
             return response;
         } catch (CustomException ex) {
-            throw ex;
+            throw new CustomException(ErrorMsg.BUS_001, 500, "Error fetching nearby jobs: ");
         } catch (Exception e) {
             log.error("Failed executing paged geo-spatial query: ", e);
             throw new CustomException(ErrorMsg.BUS_001, 500, "Error fetching nearby jobs: " + e.getMessage());
@@ -111,8 +114,8 @@ public class JobFilerService implements JobFilterServiceInterface {
         try {
             Page<JobsEntity> jobsPage = jobsRepository.findByUserId(userId, pageable);
 
-            List<JobCardDto> dtoList = jobsPage.getContent().stream().map(job -> {
-                JobCardDto dto = modelMapper.map(job, JobCardDto.class);
+            List<JobDto> dtoList = jobsPage.getContent().stream().map(job -> {
+                JobDto dto = modelMapper.map(job, JobDto.class);
                 dto.setUserId(userId);
                 dto.setUsername(job.getUser().getUsername());
                 dto.setDistance(0.0);
@@ -142,26 +145,34 @@ public class JobFilerService implements JobFilterServiceInterface {
             throw new CustomException(ErrorMsg.BUS_001, 400, "Device coordinates are required to calculate job proximities.");
         }
 
-        // Clean up empty parameters so they pass nicely to the database query
         String searchParam = (search == null || search.trim().isBlank()) ? null : search.trim();
         String categoryParam = (category == null || category.trim().isBlank()) ? null : category.trim();
         double radiusParam = (radius == null || radius <= 0) ? 10.0 : radius;
 
         try {
-            // 1. Fetch paged results matching your keywords and filters
-            Page<NearbyJobProjection> searchPageResult = activeJobsListRepository.searchNearbyJobs(
-                    lat, lng, radiusParam, searchParam, categoryParam, pageable
+            // 1. Calculate explicit limit and offset values to bypass automated sorting appends
+            int limit = pageable.getPageSize();
+            long offset = pageable.getOffset();
+
+            // 2. Fetch the data content list using explicit pagination
+            List<NearbyJobProjection> searchResults = activeJobsListRepository.searchNearbyJobs(
+                    lat, lng, radiusParam, searchParam, categoryParam, limit, offset
             );
 
-            // 2. Map projections cleanly to your card payload formats
-            List<JobCardDto> jobsList = searchPageResult.getContent().stream().map(jobProjection -> {
-                JobCardDto cardDto = modelMapper.map(jobProjection, JobCardDto.class);
+            // 3. Fetch the accurate count using the companion count query setup
+            long totalElements = activeJobsListRepository.countNearbyJobs(
+                    lat, lng, radiusParam, searchParam, categoryParam
+            );
+
+            // 4. Map projections cleanly to your card payload formats
+            List<JobDto> jobsList = searchResults.stream().map(jobProjection -> {
+                JobDto cardDto = modelMapper.map(jobProjection, JobDto.class);
                 Double rawDistance = jobProjection.getDistance();
                 cardDto.setDistance(rawDistance != null ? Math.round(rawDistance * 100.0) / 100.0 : 0.0);
                 return cardDto;
             }).collect(Collectors.toList());
 
-            // 3. Assemble response wrapper with pagination metrics
+            // 5. Assemble response wrapper with pagination metrics calculated from totalElements
             AllJobsResponse response = new AllJobsResponse(
                     200,
                     SuccessMsg.JOB_200.name(),
@@ -170,17 +181,21 @@ public class JobFilerService implements JobFilterServiceInterface {
                     jobsList
             );
 
-            response.setTotalElements(searchPageResult.getTotalElements());
-            response.setTotalPages(searchPageResult.getTotalPages());
-            response.setPageNumber(searchPageResult.getNumber());
-            response.setLast(searchPageResult.isLast());
+            int totalPages = (int) Math.ceil((double) totalElements / limit);
+            int pageNumber = pageable.getPageNumber();
+
+            response.setTotalElements(totalElements);
+            response.setTotalPages(totalPages == 0 ? 1 : totalPages);
+            response.setPageNumber(pageNumber);
+            response.setLast(pageNumber >= (totalPages - 1));
 
             return response;
 
         } catch (Exception e) {
             log.error("Search execution failure across filters: ", e);
-            throw new CustomException(ErrorMsg.BUS_001, 500, "Error matching job criteria queries: " + e.getMessage());
+            throw new CustomException(ErrorMsg.BUS_001, 500, ErrorMsg.BUS_001.getMessage());
         }
     }
+
 
 }

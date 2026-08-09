@@ -3,13 +3,11 @@ package com.localjobfinder.bakend.servicePackage;
 import com.localjobfinder.bakend.apiDataPackage.PostJobRequest;
 import com.localjobfinder.bakend.components.GeometryUtils;
 import com.localjobfinder.bakend.dbEntity.*;
-import com.localjobfinder.bakend.dtoPackage.JobCardDto;
-import com.localjobfinder.bakend.dtoPackage.CompleteJobDto;
+
+import com.localjobfinder.bakend.dtoPackage.JobDto;
 import com.localjobfinder.bakend.enums.*;
 import com.localjobfinder.bakend.exceptionPackage.CustomException;
 import com.localjobfinder.bakend.repository.*;
-import com.localjobfinder.bakend.responsePackage.AllJobsResponse;
-import com.localjobfinder.bakend.responsePackage.JobDetailsResponse;
 import com.localjobfinder.bakend.responsePackage.JobResponse;
 import com.localjobfinder.bakend.responsePackage.UserResponse;
 import com.localjobfinder.bakend.serviceInterfacePackage.JobServiceInterface;
@@ -21,7 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.Instant;
+
 
 
 @Service
@@ -55,6 +53,7 @@ public class JobService implements JobServiceInterface {
     @Override
     @Transactional
     public UserResponse postJob(PostJobRequest postJobRequest, String path, Long userId) throws CustomException {
+
         if (userId == null || userId <= 0) {
             throw new CustomException(ErrorMsg.AUTH_004, 400, "User ID is null or empty");
         }
@@ -66,9 +65,11 @@ public class JobService implements JobServiceInterface {
         if (postJobRequest.getTitle() == null || postJobRequest.getTitle().isBlank()) {
             throw new CustomException(ErrorMsg.BUS_001, 400, "Job title cannot be empty");
         }
+
         if (postJobRequest.getPayAmount() == null || postJobRequest.getPayAmount().compareTo(BigDecimal.ZERO) <= 0) {
             throw new CustomException(ErrorMsg.BUS_001, 400, "Pay amount must be greater than 0");
         }
+
         if (postJobRequest.getLatitude() == null || postJobRequest.getLongitude() == null) {
             throw new CustomException(ErrorMsg.BUS_001, 400, "Location coordinates are required");
         }
@@ -93,7 +94,7 @@ public class JobService implements JobServiceInterface {
         listing.setOwner(userEntity);
         activeJobsListRepository.save(listing);
 
-        CompleteJobDto dto = modelMapper.map(savedJob, CompleteJobDto.class);
+        JobDto dto = modelMapper.map(savedJob, JobDto.class);
         dto.setUserId(userEntity.getId());
         dto.setUsername(userEntity.getUsername());
 
@@ -103,6 +104,7 @@ public class JobService implements JobServiceInterface {
     @Override
     @Transactional
     public JobResponse deleteJob(Long ownerId, Long jobId, String path) throws CustomException {
+
         if (ownerId == null || ownerId <= 0) {
             throw new CustomException(ErrorMsg.AUTH_004, 401, "Authentication required");
         }
@@ -115,9 +117,18 @@ public class JobService implements JobServiceInterface {
         }
 
         job.setStatus(JobStatusEnum.DELETED);
-        jobsRepository.save(job);
 
         activeJobsListRepository.deleteByJobId(jobId);
+
+//        Flushing Strategy: Calling .flush() on your active listings table ensures the deletion
+//        query fires instantly, preventing race conditions if the UI immediately requests a refreshed job feed.
+
+        activeJobsListRepository.flush();
+
+//        Saves IO: Removing .save() prevents Hibernate
+//        from running redundant select checks or double update operations on the jobs table context.
+
+//        jobsRepository.save(job);
 
         return new JobResponse(200, SuccessMsg.JOB_203.name(), SuccessMsg.JOB_203.getMessage(), path);
     }
@@ -125,6 +136,7 @@ public class JobService implements JobServiceInterface {
     @Override
     @Transactional
     public JobResponse jobComplete(Long ownerId, Long jobId, String path) throws CustomException {
+
         if (ownerId == null || ownerId <= 0) {
             throw new CustomException(ErrorMsg.AUTH_004, 401, "Authentication credentials required");
         }
@@ -152,64 +164,64 @@ public class JobService implements JobServiceInterface {
         return new JobResponse(200, SuccessMsg.JOB_204.name(), "Job marked as completed successfully", path);
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    public JobDetailsResponse getJobDetails(String path, Long userId, Long jobId) throws CustomException {
-
-        if (userId == null || userId <= 0) {
-            throw new CustomException(ErrorMsg.AUTH_004, 401, "Authentication credentials required.");
-        }
-
-        if (jobId == null || jobId <= 0) {
-            throw new CustomException(ErrorMsg.BUS_001, 400, "Target Job ID is missing or invalid.");
-        }
-
-        // 1. Fetch the complete job entity context
-        JobsEntity job = jobsRepository.findById(jobId)
-                .orElseThrow(() -> new CustomException(ErrorMsg.BUS_001, 404, "Target job listing not found."));
-
-        try {
-            // 2. Map core parameters directly using ModelMapper
-            CompleteJobDto detailsDto = modelMapper.map(job, CompleteJobDto.class);
-
-            // Map user properties explicitly to avoid lazy-loading initialization issues
-            if (job.getUser() != null) {
-                detailsDto.setUserId(job.getUser().getId());
-                detailsDto.setUsername(job.getUser().getUsername());
-            }
-
-//            // 3. Evaluate context boundaries (Is the requester the creator?)
-//            boolean isOwner = job.getUser() != null && userId.equals(job.getUser().getId());
-////            detailsDto.setOwner(isOwner);
-
-//            // 4. Determine application tracking state for the requesting user
-//            if (isOwner) {
-//                detailsDto.setMyApplicationStatus("OWNER");
-//            } else {
-//                Optional<ApplicationJobsEntity> application =
-//                        applicationJobsRepository.findByUserIdAndJobId(userId, jobId);
+//    @Override
+//    @Transactional(readOnly = true)
+//    public JobDetailsResponse getJobDetails(String path, Long userId, Long jobId) throws CustomException {
 //
-//                if (application.isPresent()) {
-//                    detailsDto.setMyApplicationStatus(application.get().getStatus().name());
-//                } else {
-//                    detailsDto.setMyApplicationStatus("NOT_APPLIED");
-//                }
+//        if (userId == null || userId <= 0) {
+//            throw new CustomException(ErrorMsg.AUTH_004, 401, "Authentication credentials required.");
+//        }
+//
+//        if (jobId == null || jobId <= 0) {
+//            throw new CustomException(ErrorMsg.BUS_001, 400, "Target Job ID is missing or invalid.");
+//        }
+//
+//        // 1. Fetch the complete job entity context
+//        JobsEntity job = jobsRepository.findById(jobId)
+//                .orElseThrow(() -> new CustomException(ErrorMsg.BUS_001, 404, "Target job listing not found."));
+//
+//        try {
+//            // 2. Map core parameters directly using ModelMapper
+//            JobDto detailsDto = modelMapper.map(job, JobDto.class);
+//
+//            // Map user properties explicitly to avoid lazy-loading initialization issues
+//            if (job.getUser() != null) {
+//                detailsDto.setUserId(job.getUser().getId());
+//                detailsDto.setUsername(job.getUser().getUsername());
 //            }
-
-            // 5. Package output response payload layout
-            return new JobDetailsResponse(
-                    200,
-                    SuccessMsg.JOB_200.name(),
-                    "Job configuration details parsed successfully.",
-                    path,
-                    detailsDto
-            );
-
-        } catch (Exception e) {
-            log.error("Failed executing job description profile parsing for jobId={}", jobId, e);
-            throw new CustomException(ErrorMsg.BUS_001, 500, "Error resolving job profile details: " + e.getMessage());
-        }
-    }
+//
+////            // 3. Evaluate context boundaries (Is the requester the creator?)
+////            boolean isOwner = job.getUser() != null && userId.equals(job.getUser().getId());
+//////            detailsDto.setOwner(isOwner);
+//
+////            // 4. Determine application tracking state for the requesting user
+////            if (isOwner) {
+////                detailsDto.setMyApplicationStatus("OWNER");
+////            } else {
+////                Optional<ApplicationJobsEntity> application =
+////                        applicationJobsRepository.findByUserIdAndJobId(userId, jobId);
+////
+////                if (application.isPresent()) {
+////                    detailsDto.setMyApplicationStatus(application.get().getStatus().name());
+////                } else {
+////                    detailsDto.setMyApplicationStatus("NOT_APPLIED");
+////                }
+////            }
+//
+//            // 5. Package output response payload layout
+//            return new JobDetailsResponse(
+//                    200,
+//                    SuccessMsg.JOB_200.name(),
+//                    "Job configuration details parsed successfully.",
+//                    path,
+//                    detailsDto
+//            );
+//
+//        } catch (Exception e) {
+//            log.error("Failed executing job description profile parsing for jobId={}", jobId, e);
+//            throw new CustomException(ErrorMsg.BUS_001, 500, "Error resolving job profile details: " + e.getMessage());
+//        }
+//    }
 
 }
 

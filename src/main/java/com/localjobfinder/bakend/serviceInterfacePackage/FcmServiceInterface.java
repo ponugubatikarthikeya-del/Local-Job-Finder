@@ -7,5 +7,5 @@ public interface FcmServiceInterface {
 
     public AuthResponse updateFcmToken(Long currentUserId, String deviceFcmToken,String path) throws CustomException;
 
-    public AuthResponse removeTokenOnLogout(Long currentUserId, String deviceFcmToken, String path) throws CustomException;
+//    public AuthResponse removeTokenOnLogout(Long currentUserId, String deviceFcmToken, String path) throws CustomException;
 }

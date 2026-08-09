@@ -43,6 +43,8 @@ public class SecurityConfig {
                         .requestMatchers("/user/profiles/**").permitAll()
                         .requestMatchers("/user/job/**").permitAll()
                         .requestMatchers("/user/job/applications/**").permitAll()
+                        .requestMatchers("/user/job/filter/**").permitAll()
+                        .requestMatchers("/user/notifications/**").permitAll()
 
                         // Everything else → requires active JWT authentication validation tokens
                         .anyRequest().authenticated()

@@ -24,7 +24,7 @@ public class AuthController {
 
     private static final Logger log = LoggerFactory.getLogger(AuthController.class);
     private final AuthService authService;
-    private JwtSecurityService jwtSecurityService;
+    private final JwtSecurityService jwtSecurityService;
 
     @Autowired
     public AuthController(AuthService authService, JwtSecurityService jwtSecurityService) {
@@ -169,18 +169,33 @@ public class AuthController {
         return ResponseEntity.status(HttpStatusCode.valueOf(response.getStatus())).body(response);
     }
 
+    @DeleteMapping("logout")
+    public ResponseEntity<AuthResponse> logout(
+            @RequestHeader(value = "X-Device-Id", defaultValue = "DEFAULT_DEVICE",required = false) String deviceId,
+            @RequestParam(value = "allDevices", defaultValue = "false") boolean allDevices,
+            @Valid @RequestBody FcmTokenRequest fcmTokenRequest,
+            HttpServletRequest httpServletRequest) throws CustomException {
+
+        log.info("logout api called for deviceId={}", deviceId);
+
+        Long userId = jwtSecurityService.getCurrentUserId();
+
+        AuthResponse response = authService.logout(userId,deviceId,allDevices,getPath(httpServletRequest),fcmTokenRequest);
+        return ResponseEntity.status(HttpStatusCode.valueOf(response.getStatus())).body(response);
+
+    }
+
 
     @GetMapping("getData")
     public String getData(){
+
         RestTemplate restTemplate = new RestTemplate();
 
         String url = "https://jsonplaceholder.typicode.com/posts/1";
 
         log.info("external api called for url={}", url);
 
-        String response = restTemplate.getForObject(url, String.class);
-
-        return response;
+        return restTemplate.getForObject(url, String.class);
 
     }
 }

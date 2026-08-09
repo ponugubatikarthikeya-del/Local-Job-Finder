@@ -1,4 +1,4 @@
-package com.localjobfinder.bakend.notification;
+package com.localjobfinder.bakend.notification.job;
 
 import lombok.Getter;
 

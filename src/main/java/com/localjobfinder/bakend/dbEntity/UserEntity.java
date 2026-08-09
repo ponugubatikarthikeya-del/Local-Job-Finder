@@ -56,7 +56,7 @@ public class UserEntity {
 //    private String fcmToken;
 
     @Column(name = "created_at", insertable = false, updatable = false)
-    private Instant createdAt;
+    private Instant createdAt = Instant.now();
 
     @Column(name = "updated_at", insertable = false)
     private Instant updatedAt;
@@ -73,8 +73,13 @@ public class UserEntity {
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference
     private ProfilesEntity profile;
-//
-//    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-//    private OwnerProfileEntity ownerProfile;
+
+    // Ensure you have a helper method to bind the relationship correctly
+    public void setProfile(ProfilesEntity profile) {
+        this.profile = profile;
+        if (profile != null) {
+            profile.setUser(this);
+        }
+    }
 
 }
