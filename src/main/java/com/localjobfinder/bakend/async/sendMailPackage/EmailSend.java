@@ -1,6 +1,7 @@
-package com.localjobfinder.bakend.sendMailPackage;
+package com.localjobfinder.bakend.async.sendMailPackage;
 
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
@@ -12,11 +13,12 @@ public class EmailSend {
 
     private final JavaMailSender javaMailSender;
 
+    @Autowired
     public EmailSend(JavaMailSender javaMailSender) {
         this.javaMailSender = javaMailSender;
     }
 
-    @Async
+    @Async(value = "taskExecutor")
     public void mailSender(String email,String text,String type) {
         SimpleMailMessage mailMessage = new SimpleMailMessage();
 

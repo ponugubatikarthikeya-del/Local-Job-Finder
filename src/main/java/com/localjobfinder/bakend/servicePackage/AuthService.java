@@ -11,18 +11,22 @@ import com.localjobfinder.bakend.enums.AccountStatusEnum;
 import com.localjobfinder.bakend.OauthPackage.AuthLoginEnum;
 import com.localjobfinder.bakend.enums.ErrorMsg;
 import com.localjobfinder.bakend.enums.SuccessMsg;
-import com.localjobfinder.bakend.exceptionPackage.CustomException;
+import com.localjobfinder.bakend.exceptionPackage.custom_exceptions.DuplicateAvailableException;
+import com.localjobfinder.bakend.exceptionPackage.custom_exceptions.UnauthorizedException;
+import com.localjobfinder.bakend.exceptionPackage.custom_exceptions.InvalidException;
+import com.localjobfinder.bakend.exceptionPackage.custom_exceptions.ResourceNotFoundException;
 import com.localjobfinder.bakend.repository.FcmTokenRepository;
 import com.localjobfinder.bakend.repository.ProfileRepository;
 import com.localjobfinder.bakend.responsePackage.*;
 import com.localjobfinder.bakend.security.jwtTokenPackage.JwtService;
 import com.localjobfinder.bakend.repository.TokenRepository;
 import com.localjobfinder.bakend.repository.UserRepository;
-import com.localjobfinder.bakend.sendMailPackage.EmailSend;
+import com.localjobfinder.bakend.async.sendMailPackage.EmailSend;
 import com.localjobfinder.bakend.serviceInterfacePackage.AuthServiceInterface;
-import com.localjobfinder.bakend.utilsPackage.HelperMethods;
+import com.localjobfinder.bakend.servicePackage.AuthHelper.AuthHelperMethods;
+import com.localjobfinder.bakend.servicePackage.AuthHelper.HelperMethods;
 import com.localjobfinder.bakend.utilsPackage.RandomUtil;
-import org.modelmapper.ModelMapper;
+import com.sun.jdi.request.DuplicateRequestException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,11 +50,13 @@ public class AuthService implements AuthServiceInterface {
     private EmailSend emailSend;
     private PasswordEncoder passwordEncoder;
     private TokenRepository tokenRepository;
-    private ModelMapper modelMapper;
+
     private ProfileRepository profileRepository;
     private OAuthProviderService oAuthProviderService;
     private HelperMethods helperMethods;
     private FcmTokenRepository fcmTokenRepository;
+
+    private AuthHelperMethods authHelperMethods;
 
 
     @Autowired
@@ -59,108 +65,78 @@ public class AuthService implements AuthServiceInterface {
             , JwtService jwtService,
                                   EmailSend emailSend,
                                   PasswordEncoder passwordEncoder,
-                                  TokenRepository tokenRepository,
-                                  ModelMapper modelMapper, ProfileRepository profileRepository,
+                                  TokenRepository tokenRepository, ProfileRepository profileRepository,
                                   HelperMethods helperMethods,
-                                  FcmTokenRepository fcmTokenRepository) {
+                                  FcmTokenRepository fcmTokenRepository,
+                                  AuthHelperMethods authHelperMethods) {
         this.oAuthProviderService = oAuthProviderService;
         this.userRepository = userRepository;
         this.jwtService = jwtService;
         this.emailSend = emailSend;
         this.passwordEncoder = passwordEncoder;
         this.tokenRepository = tokenRepository;
-        this.modelMapper = modelMapper;
         this.profileRepository = profileRepository;
         this.helperMethods = helperMethods;
         this.fcmTokenRepository = fcmTokenRepository;
+        this.authHelperMethods = authHelperMethods;
     }
 
 
     @Override
 // 1. REMOVE @Transactional here to protect network threads from blocking database connection pools
-    public AuthResponse signup(SignupRequest signupRequest, String path, String deviceId) throws CustomException {
+    public AuthResponse signup(SignupRequest signupRequest, String path, String deviceId) throws Exception {
 
         String targetDeviceId = (deviceId != null && !deviceId.isBlank()) ? deviceId : "DEFAULT_DEVICE";
 
+        Optional<UserEntity> user = userRepository.findByEmail(signupRequest.getEmail());
+
+        if (user.isPresent()) {
+            throw new DuplicateAvailableException(ErrorMsg.AUTH_005.getMessage());
+        }
+
         Integer otp = RandomUtil.generateOtp();
+
         long otpExpirationSeconds = 300; // 5 minutes
 
         // 2. Perform all database persistence tasks first inside a short-lived transaction block
         // This captures the saved user directly without needing a second findByEmail query!
-        UserEntity savedUser = this.saveUserAndOtpTransaction(signupRequest, targetDeviceId, otp, otpExpirationSeconds);
+        UserEntity savedUser = authHelperMethods.saveUserAndOtpTransaction(signupRequest, targetDeviceId, otp, otpExpirationSeconds);
 
         // 3. Dispatch the network API call safely OUTSIDE the database transaction boundary
         try {
             String emailSubject = "Email Verification OTP";
+
             String emailText = "Hi " + savedUser.getUsername() + ",\n\n"
                     + "Your verification OTP is: " + otp + "\n"
                     + "This OTP will expire in 5 minutes.\n\n"
                     + "Please do not share this OTP with anyone.";
 
             emailSend.mailSender(savedUser.getEmail(), emailText, emailSubject);
+
         } catch (Exception e) {
-            throw new CustomException(ErrorMsg.SYS_002, 500); // Email send failed
+            throw new Exception("email send failed"); // Email send failed
         }
 
-        return new AuthResponse(201, SuccessMsg.AUTH_201.name(), SuccessMsg.AUTH_201.getMessage(), path);
+        return new AuthResponse(201,
+                SuccessMsg.AUTH_201.name(),
+                SuccessMsg.AUTH_201.getMessage(),
+                path
+        );
     }
 
-    // Dedicated internal transaction wrapper to guarantee database efficiency
-    @Transactional
-    protected UserEntity saveUserAndOtpTransaction(SignupRequest signupRequest, String targetDeviceId, Integer otp, long otpExpirationSeconds) throws CustomException {
-
-        Optional<UserEntity> existingUserOpt = userRepository.findByEmail(signupRequest.getEmail());
-        UserEntity user;
-
-        if (existingUserOpt.isPresent()) {
-            user = existingUserOpt.get();
-            // Allow retry only for UNVERIFIED accounts
-            if (AccountStatusEnum.VERIFIED.equals(user.getAccountStatus())) {
-                throw new CustomException(ErrorMsg.AUTH_005, 400); // Email already verified
-            }
-            // Update unverified user details to support retry flows cleanly
-            user.setUsername(signupRequest.getUsername());
-            user.setPhone(signupRequest.getPhone());
-            user.setPasswordHash(passwordEncoder.encode(signupRequest.getPassword()));
-        } else {
-            // Fresh registration
-            user = new UserEntity();
-            user.setUsername(signupRequest.getUsername());
-            user.setPhone(signupRequest.getPhone());
-            user.setEmail(signupRequest.getEmail());
-            user.setPasswordHash(passwordEncoder.encode(signupRequest.getPassword()));
-            user.setAccountStatus(AccountStatusEnum.UNVERIFIED);
-            user.setAuthProvider(AuthLoginEnum.LOCAL);
-        }
-
-        // Save user and capture the returned reference instantly
-        UserEntity savedUser = userRepository.save(user);
-
-        // Persist hashed OTP token record safely
-        TokenEntity tokenEntity = helperMethods.getOrCreateTokenEntityForDevice(savedUser.getId(), targetDeviceId);
-        tokenEntity.setOtpHash(passwordEncoder.encode(String.valueOf(otp)));
-        tokenEntity.setOtpExpiry(Instant.now().plusSeconds(otpExpirationSeconds));
-        tokenEntity.setRevoked(false);
-        tokenRepository.save(tokenEntity);
-
-        return savedUser;
-    }
-
-
-    // 2. SIGNUP OTP VERIFICATION ....................................................................
 
     @Override
     @Transactional
-    public LoginResponse signupOtpVerification(SignupOtpValidationRequest signupOtpValidationRequest, String path, String deviceId) throws CustomException {
+    public LoginResponse signupOtpVerification(SignupOtpValidationRequest signupOtpValidationRequest, String path, String deviceId) {
 
         String targetDeviceId = (deviceId != null && !deviceId.isBlank()) ? deviceId : "DEFAULT_DEVICE";
 
         if (signupOtpValidationRequest.getOtp() == null || signupOtpValidationRequest.getOtp().isBlank()) {
-            throw new CustomException(ErrorMsg.OTP_002, 400);
+            throw new InvalidException(ErrorMsg.OTP_002.getMessage());
         }
 
         UserEntity user = userRepository.findByEmail(signupOtpValidationRequest.getEmail())
-                .orElseThrow(() -> new CustomException(ErrorMsg.AUTH_004, 404));
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorMsg.AUTH_008.getMessage()));
 
         // 1. Fetch tokens using UserEntity directly
         List<TokenEntity> tokens = tokenRepository.findByUserId(user.getId());
@@ -178,9 +154,8 @@ public class AuthService implements AuthServiceInterface {
             }
         }
 
-
         if (matchedToken == null) {
-            throw new CustomException(ErrorMsg.OTP_002, 400); // Invalid or expired OTP
+            throw new InvalidException(ErrorMsg.OTP_002.getMessage()); // Invalid or expired OTP
         }
 
         if(!matchedToken.getDeviceId().equals(targetDeviceId)){
@@ -189,6 +164,7 @@ public class AuthService implements AuthServiceInterface {
 
         // 2. Mark Account as Verified
         user.setAccountStatus(AccountStatusEnum.VERIFIED);
+
         userRepository.save(user);
 
         // 3. Create User Profile if it doesn't already exist (Prevents Duplicate Key 500 Error)
@@ -226,24 +202,24 @@ public class AuthService implements AuthServiceInterface {
 
     @Override
 // 1. REMOVE @Transactional here to keep your server threads and connection pools safe from Network I/O
-    public AuthResponse resendOtp(EmailCheckupRequest emailCheckupRequest, String path, String deviceId) throws CustomException {
+    public AuthResponse resendOtp(EmailCheckupRequest emailCheckupRequest, String path, String deviceId) throws Exception {
 
         String targetDeviceId = (deviceId != null && !deviceId.isBlank()) ? deviceId : "DEFAULT_DEVICE";
 
         // 2. Fetch the user details immediately
         UserEntity user = userRepository.findByEmail(emailCheckupRequest.getEmail())
-                .orElseThrow(() -> new CustomException(ErrorMsg.AUTH_004, 404));
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorMsg.AUTH_008.getMessage()));
 
         // 3. UNCOMMENT THIS: Prevent spamming already verified users
         if (AccountStatusEnum.VERIFIED.equals(user.getAccountStatus())) {
-            throw new CustomException(ErrorMsg.AUTH_005, 400); // Already verified
+            throw new DuplicateAvailableException(ErrorMsg.AUTH_005.getMessage()); // Already verified
         }
 
         Integer newOtp = RandomUtil.generateOtp();
         long otpExpirationSeconds = 300; // 5 minutes
 
         // 4. Save the OTP to the database FIRST inside an isolated transaction
-        this.saveOtpTokenTransaction(user.getId(), targetDeviceId, newOtp, otpExpirationSeconds);
+        authHelperMethods.saveOtpTokenTransaction(user.getId(), targetDeviceId, newOtp, otpExpirationSeconds);
 
         // 5. Send the email safely AFTER the database operation is guaranteed successful
         try {
@@ -256,7 +232,7 @@ public class AuthService implements AuthServiceInterface {
             emailSend.mailSender(user.getEmail(), emailText, emailSubject);
         } catch (Exception e) {
             // Log your error here
-            throw new CustomException(ErrorMsg.SYS_002, 500); // Email send failed
+            throw new Exception("email send failed"); // Email send failed
         }
 
         return new AuthResponse(
@@ -267,47 +243,31 @@ public class AuthService implements AuthServiceInterface {
         );
     }
 
-    // Separate transactional database operations to keep the connection lifespan ultra-short
-    @Transactional
-    protected void saveOtpTokenTransaction(Long userId, String targetDeviceId, Integer newOtp, long otpExpirationSeconds) {
-        TokenEntity tokenEntity = helperMethods.getOrCreateTokenEntityForDevice(userId, targetDeviceId);
-        tokenEntity.setOtpHash(passwordEncoder.encode(String.valueOf(newOtp)));
-        tokenEntity.setOtpExpiry(Instant.now().plusSeconds(otpExpirationSeconds)); // Simplified time syntax
-        tokenEntity.setRevoked(false);
-        tokenRepository.save(tokenEntity);
-    }
-
-
-    // ==========================================
-    // 3. STANDARD LOGIN (Email/Password)
-    // ==========================================
     @Override
     @Transactional
-    public LoginResponse login(LoginRequest loginRequest, String path, String deviceId) throws CustomException {
+    public LoginResponse login(LoginRequest loginRequest, String path, String deviceId) throws Exception {
 
         String targetDeviceId = (deviceId != null && !deviceId.isBlank()) ? deviceId : "DEFAULT_DEVICE";
 
         UserEntity user = userRepository.findByEmail(loginRequest.getEmail())
-                .orElseThrow(() -> new CustomException(ErrorMsg.AUTH_004, 404));
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorMsg.AUTH_008.getMessage()));
 
         if (user.getId() == null) {
-            throw new CustomException(ErrorMsg.GEN_001, 500); // User ID is null - should not happen
+            throw new Exception("User ID is null"); // User ID is null - should not happen
         }
 
         if (user.getAccountStatus() != AccountStatusEnum.VERIFIED) {
-            throw new CustomException(ErrorMsg.AUTH_003, 400); // Unverified account
+            throw new UnauthorizedException(ErrorMsg.AUTH_003.getMessage()); // Unverified account
         }
 
         // Prevent password login if account was registered via OAuth without a password
         if (user.getPasswordHash() == null || user.getPasswordHash().isBlank()) {
-            throw new CustomException(ErrorMsg.AUTH_007, 400); // Use OAuth login instead
+            throw new InvalidException(ErrorMsg.AUTH_007.getMessage()); // Use OAuth login instead
         }
 
         if (!passwordEncoder.matches(loginRequest.getPassword(), user.getPasswordHash())) {
-            throw new CustomException(ErrorMsg.AUTH_007, 401); // Bad credentials
+            throw new InvalidException(ErrorMsg.AUTH_007.getMessage()); // Bad credentials
         }
-
-
 
         // Generate JWT Tokens
         String jwtAccessToken = jwtService.generateAccessToken(user.getId());
@@ -334,7 +294,7 @@ public class AuthService implements AuthServiceInterface {
 
     @Override
     @Transactional
-    public LoginResponse socialLogin(OAuthLoginRequest request, String path,String deviceId) throws CustomException {
+    public LoginResponse socialLogin(OAuthLoginRequest request, String path,String deviceId) {
 
         if(deviceId == null || deviceId.isEmpty()){
             deviceId = "DEFAULT_DEVICE";
@@ -345,19 +305,21 @@ public class AuthService implements AuthServiceInterface {
         OAuthUserDto oAuthUser = oAuthProviderService.fetchOAuthUser(request.getProvider(), request.getToken());
 
         if (oAuthUser == null || oAuthUser.getProviderName() == null) {
-            throw new CustomException(ErrorMsg.OAUTH_004, 400);
+            throw new UnauthorizedException(ErrorMsg.OAUTH_004.getMessage()); // unauthorized user access
         }
 
         if (oAuthUser.getEmail() == null || oAuthUser.getEmail().isBlank()) {
-            throw new CustomException(ErrorMsg.OAUTH_008, 400);
+            throw new InvalidException(ErrorMsg.OAUTH_008.getMessage());
         }
 
         if(!oAuthUser.isEmailVerified()){
-            throw new CustomException(ErrorMsg.OAUTH_004, 400);
+            throw new UnauthorizedException(ErrorMsg.OAUTH_004.getMessage());
         }
 
         AuthLoginEnum providerEnum = oAuthUser.getProviderName(); // Assuming oAuthUser returns AuthLoginEnum
+
         Optional<UserEntity> userOpt = userRepository.findByEmail(oAuthUser.getEmail());
+
         UserEntity user;
 
         if (userOpt.isPresent()) {
@@ -419,52 +381,46 @@ public class AuthService implements AuthServiceInterface {
         );
     }
 
-
     @Override
     @Transactional
-    public RefreshTokenResponse newAccessToken(Long userId, String refreshToken,String path) throws CustomException {
+    public RefreshTokenResponse newAccessToken(String refreshToken, String path) {
 
-        if (userId == null) {
-            throw new CustomException(ErrorMsg.AUTH_006, 401);
-        }
-
-        // 1. Cryptographic Check: Immediately reject if the JWT string string itself is expired
+        // 1. Validate JWT structure & expiration first
         if (jwtService.isTokenExpired(refreshToken)) {
-            throw new CustomException(ErrorMsg.TOKEN_002, 401); // Token expired message
+            throw new InvalidException(ErrorMsg.TOKEN_002.getMessage());
         }
+
+        // 2. Extract userId safely directly from the Refresh Token
+        String userIdStrStr = jwtService.extractUserId(refreshToken);
+
+        if (userIdStrStr == null) {
+            throw new ResourceNotFoundException(ErrorMsg.AUTH_006.getMessage());
+        }
+
+        Long userId = Long.parseLong(userIdStrStr);
 
         UserEntity user = userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(ErrorMsg.AUTH_008, 401));
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorMsg.AUTH_008.getMessage()));
 
-        // find candidate refresh tokens for user and match by hash
-        List<TokenEntity> tokens = tokenRepository.findByUserId(user.getId());
-        TokenEntity matched = null;
+        // 3. Database lookup for active matching token (DB-level query instead of Java loop)
+        TokenEntity matchedToken = tokenRepository.findByHashRefreshTokenAndRevokedFalse(refreshToken)
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorMsg.AUTH_008.getMessage()));
 
-        // 2. Database Expiration Check Loop
-        for (TokenEntity t : tokens) {
-            if (!t.isRevoked()) {
-                // Check matching hash AND ensure current time hasn't passed database expiration record
-                if (refreshToken.equals(t.getHashRefreshToken()) &&
-                        t.getTokenExpiresAt() != null && t.getTokenExpiresAt().isAfter(Instant.now())) {
-                    matched = t;
-                    break;
-                }
-            }
+        // 4. Verify token expiry in DB
+        if (matchedToken.getTokenExpiresAt() == null || matchedToken.getTokenExpiresAt().isBefore(Instant.now())) {
+            throw new InvalidException(ErrorMsg.TOKEN_002.getMessage());
         }
 
-        if (matched == null) {
-            throw new CustomException(ErrorMsg.AUTH_008, 401);
-        }
-
-        // NEW CODE: Overwrite the existing row in-place with the rotated tokens
-        String newJwtRefreshToken = jwtService.generateRefreshToken(user.getId());
+        // 5. Rotate tokens
         String newJwtAccessToken = jwtService.generateAccessToken(user.getId());
+        String newJwtRefreshToken = jwtService.generateRefreshToken(user.getId());
 
-        matched.setHashAccessToken(newJwtAccessToken);
-        matched.setHashRefreshToken(newJwtRefreshToken);
-        matched.setTokenExpiresAt(Instant.now().plus(180, ChronoUnit.DAYS));
-        matched.setRevoked(false); // Reset active status
-        tokenRepository.save(matched);
+        matchedToken.setHashAccessToken(newJwtAccessToken);
+        matchedToken.setHashRefreshToken(newJwtRefreshToken);
+        matchedToken.setRevoked(false); // Reset active status
+        matchedToken.setTokenExpiresAt(Instant.now().plus(180, ChronoUnit.DAYS));
+
+        tokenRepository.save(matchedToken);
 
         return new RefreshTokenResponse(
                 200,
@@ -474,30 +430,30 @@ public class AuthService implements AuthServiceInterface {
                 newJwtAccessToken,
                 newJwtRefreshToken
         );
-
     }
 
     // email check up for reset password
 
     @Override
-// REMOVE @Transactional here to protect network threads from blocking database connections
+ // REMOVE @Transactional here to protect network threads from blocking database connections
     public AuthResponse forgetPasswordEmailRequest(
-            EmailCheckupRequest emailCheckupRequest, String request) throws CustomException {
+            EmailCheckupRequest emailCheckupRequest, String request) throws Exception {
 
         // 1. Fetch user details immediately
         UserEntity user = userRepository.findByEmail(emailCheckupRequest.getEmail())
-                .orElseThrow(() -> new CustomException(ErrorMsg.AUTH_008, 404));
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorMsg.AUTH_008.getMessage()));
 
         // CRUCIAL SECURITY GUARD: Block unverified users from requesting a password reset
         if (AccountStatusEnum.UNVERIFIED.equals(user.getAccountStatus())) {
-            throw new CustomException(ErrorMsg.AUTH_003, 400); // "Account is not verified. Please verify first."
+            throw new InvalidException(ErrorMsg.AUTH_003.getMessage()); // "Account is not verified. Please verify first."
         }
 
         Integer otp = RandomUtil.generateOtp();
+
         long expiration = 300; // 5 minutes
 
         // 2. Persist the OTP token data FIRST inside a short-lived isolated transaction
-        this.saveForgotPasswordTokenTransaction(user, otp, expiration);
+        authHelperMethods.saveForgotPasswordTokenTransaction(user, otp, expiration);
 
         // 3. Dispatch the email safely OUTSIDE the active database transaction boundary
         try {
@@ -507,8 +463,9 @@ public class AuthService implements AuthServiceInterface {
                     + "If you did not request a password reset, please ignore this email.";
 
             emailSend.mailSender(user.getEmail(), text, "password reset");
+
         } catch (Exception e) {
-            throw new CustomException(ErrorMsg.SYS_002, 500); // Email send failed
+            throw new Exception("email send failed"); // Email send failed
         }
 
         return new AuthResponse(
@@ -519,38 +476,21 @@ public class AuthService implements AuthServiceInterface {
         );
     }
 
-    // Dedicated short-lived transactional block for token management
-    @Transactional
-    protected void saveForgotPasswordTokenTransaction(UserEntity user, Integer otp, long expiration) {
-        // Reuses user's single token row safely
-        List<TokenEntity> userTokens = tokenRepository.findByUserId(user.getId());
-        TokenEntity tokenEntity = userTokens.isEmpty()
-                ? helperMethods.getOrCreateTokenEntity(user)
-                : userTokens.get(0);
-
-        tokenEntity.setOtpHash(passwordEncoder.encode(String.valueOf(otp)));
-        tokenEntity.setOtpExpiry(Instant.now().plusSeconds(expiration));
-        tokenEntity.setRevoked(false);
-
-        tokenRepository.save(tokenEntity);
-    }
-
-
     // reset password otp validation
 
     @Override
     @Transactional
     public ResetKeyOtpResponse forgetPasswordOtpValidate(
-            ResetPasswordOtpValidateRequest resetPasswordOtpValidateRequest, String request) throws CustomException {
+            ResetPasswordOtpValidateRequest resetPasswordOtpValidateRequest, String request) {
 
         if(resetPasswordOtpValidateRequest.getOtp() <= 0){
-            throw new CustomException(ErrorMsg.OTP_002,401);
+            throw new InvalidException(ErrorMsg.OTP_002.getMessage());
         }
 
         Optional<UserEntity> userEntity = userRepository.findByEmail(resetPasswordOtpValidateRequest.getEmail());
 
         if(userEntity.isEmpty()){
-            throw new CustomException(ErrorMsg.OTP_002,404);
+            throw new ResourceNotFoundException(ErrorMsg.AUTH_008.getMessage());
         }
 
         UserEntity user = userEntity.get();
@@ -570,7 +510,7 @@ public class AuthService implements AuthServiceInterface {
         }
 
         if (matched == null) {
-            throw new CustomException(ErrorMsg.OTP_002,400);
+            throw new InvalidException(ErrorMsg.OTP_002.getMessage());
         }
 
         String resetKey = RandomUtil.randomString();
@@ -597,23 +537,26 @@ public class AuthService implements AuthServiceInterface {
     @Override
     @Transactional
     public AuthResponse forgetPasswordRequest(
-            PasswordRequest passwordRequest, String request) throws CustomException {
+            PasswordRequest passwordRequest, String request) {
 
         //if reset password and confirm password does not match then throw mismatch Exception
         if(!passwordRequest.getResetPassword().equals(passwordRequest.getConfirmPassword())){
-            throw new CustomException(ErrorMsg.AUTH_009,400);
+            throw new InvalidException(ErrorMsg.AUTH_009.getMessage());
         }
 
         // find token by reset key
         Optional<TokenEntity> tokenEntityOptional = tokenRepository.findByHashResetKey(passwordRequest.getResetKey());
+
         if (tokenEntityOptional.isEmpty()) {
-            throw new CustomException(ErrorMsg.AUTH_008,404);
+            throw new ResourceNotFoundException(ErrorMsg.AUTH_008.getMessage());
         }
 
         TokenEntity tokenEntity = tokenEntityOptional.get();
+
         UserEntity user = tokenEntity.getUser();
 
         user.setPasswordHash(passwordEncoder.encode(passwordRequest.getResetPassword()));
+
         userRepository.save(user);
 
         // CLEANUP: Nullify the reset key so it becomes single-use
@@ -634,28 +577,36 @@ public class AuthService implements AuthServiceInterface {
 
     @Override
     @Transactional
-    public AuthResponse logout(Long userId, String deviceId, boolean allDevices, String path,FcmTokenRequest fcmTokenRequest) throws CustomException {
+    public AuthResponse logout(Long userId, String deviceId, boolean allDevices, String path, FcmTokenRequest fcmTokenRequest){
 
-        if(userId == null){
-            throw new CustomException(ErrorMsg.AUTH_008,404);
+        if (userId == null) {
+            throw new ResourceNotFoundException(ErrorMsg.AUTH_008.getMessage());
         }
 
-        // Check if the user exists quickly without pulling the whole object graph
         if (!userRepository.existsById(userId)) {
-            throw new CustomException(ErrorMsg.AUTH_008, 404);
+            throw new ResourceNotFoundException(ErrorMsg.AUTH_008.getMessage());
         }
 
-        if (fcmTokenRequest == null || fcmTokenRequest.getDeviceFcmToken() == null || path == null) {
-            throw new CustomException(ErrorMsg.TOKEN_002, 400);
+        // 1. Best-effort FCM Token removal (never blocks session logout)
+        if (fcmTokenRequest != null && fcmTokenRequest.getDeviceFcmToken() != null && !fcmTokenRequest.getDeviceFcmToken().isBlank()) {
+            try {
+                fcmTokenRepository.deleteByUserIdAndDeviceToken(userId, fcmTokenRequest.getDeviceFcmToken());
+                log.info("Successfully removed FCM token for userId={}", userId);
+            } catch (Exception e) {
+                log.warn("Failed to delete FCM token on logout for userId={}: {}", userId, e.getMessage());
+            }
         }
 
-        fcmTokenRepository.deleteByUserIdAndDeviceToken(userId, fcmTokenRequest.getDeviceFcmToken());
+        String targetDeviceId = (deviceId != null && !deviceId.isBlank()) ? deviceId : "DEFAULT_DEVICE";
 
-        log.info("Successfully removed FCM token on logout for userId={}", userId);
-
+        // 2. Revoke ALL device sessions
         if (allDevices) {
-            // Option 2: Remove every single device session row from DB
-            tokenRepository.deleteByUserId(userId);
+            List<TokenEntity> userTokens = tokenRepository.findByUserId(userId);
+            for (TokenEntity token : userTokens) {
+                token.setRevoked(true);
+            }
+            tokenRepository.saveAll(userTokens);
+
             return new AuthResponse(
                     200,
                     SuccessMsg.AUTH_203.name(),
@@ -664,18 +615,67 @@ public class AuthService implements AuthServiceInterface {
             );
         }
 
-        // Option 1: Remove only the current device session
-        if (deviceId == null || deviceId.isEmpty()) {
-            deviceId = "DEFAULT_DEVICE";
-        }
+        // 3. Revoke CURRENT device session
+        Optional<TokenEntity> tokenOpt = tokenRepository.findByUserIdAndDeviceIdWithLock(userId, targetDeviceId);
 
-        tokenRepository.deleteByUserIdAndDeviceId(userId, deviceId);
+        if (tokenOpt.isPresent()) {
+            TokenEntity token = tokenOpt.get();
+            token.setRevoked(true);
+            tokenRepository.save(token);
+        }
 
         return new AuthResponse(
                 200,
                 SuccessMsg.AUTH_203.name(),
                 SuccessMsg.AUTH_203.getMessage(),
-               path
+                path
         );
     }
+
+//    @Override
+//    @Transactional
+//    public AuthResponse logout(Long userId, String deviceId, boolean allDevices, String path,FcmTokenRequest fcmTokenRequest) throws CustomException {
+//
+//        if(userId == null){
+//            throw new CustomException(ErrorMsg.AUTH_008,404);
+//        }
+//
+//        // Check if the user exists quickly without pulling the whole object graph
+//        if (!userRepository.existsById(userId)) {
+//            throw new CustomException(ErrorMsg.AUTH_008, 404);
+//        }
+//
+//        if (fcmTokenRequest == null || fcmTokenRequest.getDeviceFcmToken() == null || path == null) {
+//            throw new CustomException(ErrorMsg.TOKEN_002, 400);
+//        }
+//
+//        fcmTokenRepository.deleteByUserIdAndDeviceToken(userId, fcmTokenRequest.getDeviceFcmToken());
+//
+//        log.info("Successfully removed FCM token on logout for userId={}", userId);
+//
+//        if (allDevices) {
+//            // Option 2: Remove every single device session row from DB
+//            tokenRepository.deleteByUserId(userId);
+//            return new AuthResponse(
+//                    200,
+//                    SuccessMsg.AUTH_203.name(),
+//                    SuccessMsg.AUTH_203.getMessage(),
+//                    path
+//            );
+//        }
+//
+//        // Option 1: Remove only the current device session
+//        if (deviceId == null || deviceId.isEmpty()) {
+//            deviceId = "DEFAULT_DEVICE";
+//        }
+//
+//        tokenRepository.deleteByUserIdAndDeviceId(userId, deviceId);
+//
+//        return new AuthResponse(
+//                200,
+//                SuccessMsg.AUTH_203.name(),
+//                SuccessMsg.AUTH_203.getMessage(),
+//               path
+//        );
+//    }
 }

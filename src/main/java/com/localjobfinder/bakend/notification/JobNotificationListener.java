@@ -2,14 +2,11 @@ package com.localjobfinder.bakend.notification;
 
 import com.localjobfinder.bakend.dbEntity.FcmTokenEntity;
 
-import com.localjobfinder.bakend.exceptionPackage.CustomException;
 import com.localjobfinder.bakend.notification.job.JobNotificationEvent;
 import com.localjobfinder.bakend.repository.FcmTokenRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.event.EventListener;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -34,7 +31,7 @@ public class JobNotificationListener {
 
 
    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void handleJobNotificationEvent(JobNotificationEvent event) throws CustomException {
+    public void handleJobNotificationEvent(JobNotificationEvent event)  {
         // 1. Fetch all active device tokens associated with this specific user
         List<FcmTokenEntity> userTokens = fcmTokenRepository.findByUserId(event.getTargetUserId());
 

@@ -1,22 +1,28 @@
 package com.localjobfinder.bakend.servicePackage;
 
-import com.localjobfinder.bakend.components.GeometryUtils;
 import com.localjobfinder.bakend.dbEntity.JobsEntity;
-import com.localjobfinder.bakend.dbEntity.ProfilesEntity;
-import com.localjobfinder.bakend.dbEntity.UserEntity;
 import com.localjobfinder.bakend.dtoPackage.JobDto;
 import com.localjobfinder.bakend.enums.ErrorMsg;
 import com.localjobfinder.bakend.enums.SuccessMsg;
-import com.localjobfinder.bakend.exceptionPackage.CustomException;
+import com.localjobfinder.bakend.exceptionPackage.custom_exceptions.InvalidException;
+import com.localjobfinder.bakend.exceptionPackage.custom_exceptions.ResourceNotFoundException;
+import com.localjobfinder.bakend.paging.JobFilterCriteria;
+import com.localjobfinder.bakend.paging.JobPagingResponse;
+import com.localjobfinder.bakend.paging.PagedResponse;
+
+import com.localjobfinder.bakend.paging.SpecificationBuilder;
 import com.localjobfinder.bakend.repository.*;
-import com.localjobfinder.bakend.responsePackage.AllJobsResponse;
 import com.localjobfinder.bakend.serviceInterfacePackage.JobFilterServiceInterface;
-import org.modelmapper.ModelMapper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.localjobfinder.bakend.utilsPackage.MapStructMapper;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.Point;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,173 +35,151 @@ public class JobFilerService implements JobFilterServiceInterface {
 
     private final JobsRepository jobsRepository;
     private final UserRepository userRepository;
-    private final ActiveJobsListRepository activeJobsListRepository;
-    private final ProfileRepository profileRepository;
-    private final GeometryUtils geometryUtils;
-    private final ModelMapper modelMapper;
-
-    private static final Logger log = LoggerFactory.getLogger(JobService.class);
+    private final MapStructMapper mapStructMapper;
+    private final GeometryFactory geometryFactory;
 
     @Autowired
     public JobFilerService(JobsRepository jobsRepository, UserRepository userRepository,
-                      GeometryUtils geometryUtils, ActiveJobsListRepository activeJobsListRepository,
-                      ProfileRepository profileRepository, ModelMapper modelMapper) {
+                           MapStructMapper mapStructMapper, GeometryFactory geometryFactory) {
         this.jobsRepository = jobsRepository;
         this.userRepository = userRepository;
-        this.activeJobsListRepository = activeJobsListRepository;
-        this.geometryUtils = geometryUtils;
-        this.modelMapper = modelMapper;
-        this.profileRepository = profileRepository;
-    }
-
-
-    @Override
-    @Transactional(readOnly = true)
-    public AllJobsResponse getActiveJobs(BigDecimal lat, BigDecimal lng, Double radius, String path, Long userId, Pageable pageable) throws CustomException {
-        if (path == null || lat == null || lng == null) {
-            throw new CustomException(ErrorMsg.BUS_001, 400, "Search location vectors cannot be null");
-        }
-        if (radius == null || radius <= 0) {
-            radius = 10.0;
-        }
-        if (userId == null || userId <= 0) {
-            throw new CustomException(ErrorMsg.BUS_001, 400, "User context identity missing");
-        }
-
-        try {
-            UserEntity user = userRepository.findById(userId)
-                    .orElseThrow(() -> new CustomException(ErrorMsg.AUTH_008, 404, "User not found"));
-
-            ProfilesEntity profilesEntity = user.getProfile();
-
-            if (profilesEntity != null) {
-                profilesEntity.setLatitude(lat);
-                profilesEntity.setLongitude(lng);
-                profileRepository.save(profilesEntity);
-            }
-
-            Page<NearbyJobProjection> dynamicPageResult = activeJobsListRepository.findNearbyActiveJobs(lat, lng, radius, pageable);
-
-            List<JobDto> jobsList = dynamicPageResult.getContent().stream().map(jobProjection -> {
-                JobDto cardDto = modelMapper.map(jobProjection, JobDto.class);
-                cardDto.setUserId(jobProjection.getUserId());
-                cardDto.setUsername(jobProjection.getUsername());
-
-                Double rawDistance = jobProjection.getDistance();
-                cardDto.setDistance(rawDistance != null ? Math.round(rawDistance * 100.0) / 100.0 : 0.0);
-                return cardDto;
-            }).collect(Collectors.toList());
-
-            AllJobsResponse response = new AllJobsResponse(200, SuccessMsg.JOB_200.name(), SuccessMsg.JOB_200.getMessage(), path, jobsList);
-            response.setTotalElements(dynamicPageResult.getTotalElements());
-            response.setTotalPages(dynamicPageResult.getTotalPages());
-            response.setLast(dynamicPageResult.isLast());
-            response.setPageNumber(dynamicPageResult.getNumber());
-
-            return response;
-        } catch (CustomException ex) {
-            throw new CustomException(ErrorMsg.BUS_001, 500, "Error fetching nearby jobs: ");
-        } catch (Exception e) {
-            log.error("Failed executing paged geo-spatial query: ", e);
-            throw new CustomException(ErrorMsg.BUS_001, 500, "Error fetching nearby jobs: " + e.getMessage());
-        }
+        this.mapStructMapper = mapStructMapper;
+        this.geometryFactory = geometryFactory;
     }
 
     @Override
     @Transactional(readOnly = true)
-    public AllJobsResponse getMyJobs(String path, Long userId, Pageable pageable) throws CustomException {
-        if (userId == null || userId <= 0) {
-            throw new CustomException(ErrorMsg.AUTH_004, 400, "Invalid user token pointer");
+    public JobPagingResponse<PagedResponse<JobDto>> filterJobs(Long userId,
+                                                               JobFilterCriteria criteria, String path) {
+
+        if (path == null || criteria.getLat() == null || criteria.getLng() == null) {
+            throw new InvalidException("Search location vectors cannot be null");
         }
+
+        validateCoordinates(criteria.getLat(), criteria.getLng());
+
+        double radiusInKilometers = criteria.getRadius() == null ? 50.0 : criteria.getRadius();
+
+        if (!Double.isFinite(radiusInKilometers) || radiusInKilometers <= 0) {
+            throw new InvalidException("Radius must be a finite value greater than zero kilometers");
+        }
+
+        double radiusInMeters = radiusInKilometers * 1000.0;
+
+        if (!Double.isFinite(radiusInMeters)) {
+            throw new InvalidException("Radius is too large");
+        }
+
+        if (userId == null || userId <= 0) {
+            throw new ResourceNotFoundException(ErrorMsg.AUTH_008.getMessage());
+        }
+
         if (!userRepository.existsById(userId)) {
-            throw new CustomException(ErrorMsg.AUTH_008, 404, "User context not found");
+            throw new ResourceNotFoundException(ErrorMsg.AUTH_008.getMessage());
         }
 
-        try {
-            Page<JobsEntity> jobsPage = jobsRepository.findByUserId(userId, pageable);
+        int page = criteria.getPage();
 
-            List<JobDto> dtoList = jobsPage.getContent().stream().map(job -> {
-                JobDto dto = modelMapper.map(job, JobDto.class);
-                dto.setUserId(userId);
-                dto.setUsername(job.getUser().getUsername());
-                dto.setDistance(0.0);
-                return dto;
-            }).collect(Collectors.toList());
-
-            AllJobsResponse response = new AllJobsResponse(200, SuccessMsg.JOB_200.name(), SuccessMsg.JOB_200.getMessage(), path, dtoList);
-            response.setTotalElements(jobsPage.getTotalElements());
-            response.setTotalPages(jobsPage.getTotalPages());
-            response.setPageNumber(jobsPage.getNumber());
-            response.setLast(jobsPage.isLast());
-
-            return response;
-        } catch (Exception e) {
-            log.error("Failed to fetch user listings: ", e);
-            throw new CustomException(ErrorMsg.BUS_001, 500, "Error retrieving job listings: " + e.getMessage());
+        if (page < 0) {
+            throw new InvalidException("Page number cannot be negative");
         }
+
+        int size = criteria.getSize() == 0 ? 20 : criteria.getSize();
+
+        if (size < 10 || size > 100) {
+            throw new InvalidException("Page size must be between 10 and 100");
+        }
+
+        Pageable pageable = PageRequest.of(page, size,
+                Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id")));
+
+        Point userLocation = geometryFactory.createPoint(new Coordinate(criteria.getLat().doubleValue(), criteria.getLng().doubleValue()));
+        userLocation.setSRID(4326);
+
+        Specification<JobsEntity> spec = SpecificationBuilder.filterBy(
+                criteria, radiusInMeters, userLocation
+        );
+
+        Page<JobsEntity> jobsPage = jobsRepository.findAll(spec, pageable);
+
+        List<JobDto> dtoList = jobsPage.getContent().stream().map(job -> {
+            JobDto dto = mapStructMapper.toJobDtoByJobEntity(job);
+            dto.setUserId(job.getUser().getId());
+            dto.setUsername(job.getUser().getUsername());
+            dto.setDistance(0.0);
+            return dto;
+        }).collect(Collectors.toList());
+
+        PagedResponse<JobDto> pagedDataResponse = new PagedResponse<>(
+                dtoList,
+                jobsPage.getNumber(),
+                jobsPage.getSize(),
+                jobsPage.getTotalElements(),
+                jobsPage.getTotalPages(),
+                jobsPage.isLast()
+        );
+
+        return new JobPagingResponse<>(200,
+                SuccessMsg.APP_200.name(),
+                "Filtered listings compiled successfully",
+                path,
+                pagedDataResponse
+        );
+
     }
-
 
     @Override
     @Transactional(readOnly = true)
-    public AllJobsResponse searchJobs(BigDecimal lat, BigDecimal lng, Double radius, String search,
-                                      String category, String path, Long userId, Pageable pageable) throws CustomException {
+    public JobPagingResponse<PagedResponse<JobDto>> getMyJobs(Long userId, String path, int page, int size) {
 
-        if (lat == null || lng == null) {
-            throw new CustomException(ErrorMsg.BUS_001, 400, "Device coordinates are required to calculate job proximities.");
+        if (userId == null || userId <= 0) {
+            throw new InvalidException("Invalid user token pointer");
         }
 
-        String searchParam = (search == null || search.trim().isBlank()) ? null : search.trim();
-        String categoryParam = (category == null || category.trim().isBlank()) ? null : category.trim();
-        double radiusParam = (radius == null || radius <= 0) ? 10.0 : radius;
-
-        try {
-            // 1. Calculate explicit limit and offset values to bypass automated sorting appends
-            int limit = pageable.getPageSize();
-            long offset = pageable.getOffset();
-
-            // 2. Fetch the data content list using explicit pagination
-            List<NearbyJobProjection> searchResults = activeJobsListRepository.searchNearbyJobs(
-                    lat, lng, radiusParam, searchParam, categoryParam, limit, offset
-            );
-
-            // 3. Fetch the accurate count using the companion count query setup
-            long totalElements = activeJobsListRepository.countNearbyJobs(
-                    lat, lng, radiusParam, searchParam, categoryParam
-            );
-
-            // 4. Map projections cleanly to your card payload formats
-            List<JobDto> jobsList = searchResults.stream().map(jobProjection -> {
-                JobDto cardDto = modelMapper.map(jobProjection, JobDto.class);
-                Double rawDistance = jobProjection.getDistance();
-                cardDto.setDistance(rawDistance != null ? Math.round(rawDistance * 100.0) / 100.0 : 0.0);
-                return cardDto;
-            }).collect(Collectors.toList());
-
-            // 5. Assemble response wrapper with pagination metrics calculated from totalElements
-            AllJobsResponse response = new AllJobsResponse(
-                    200,
-                    SuccessMsg.JOB_200.name(),
-                    SuccessMsg.JOB_200.getMessage(),
-                    path,
-                    jobsList
-            );
-
-            int totalPages = (int) Math.ceil((double) totalElements / limit);
-            int pageNumber = pageable.getPageNumber();
-
-            response.setTotalElements(totalElements);
-            response.setTotalPages(totalPages == 0 ? 1 : totalPages);
-            response.setPageNumber(pageNumber);
-            response.setLast(pageNumber >= (totalPages - 1));
-
-            return response;
-
-        } catch (Exception e) {
-            log.error("Search execution failure across filters: ", e);
-            throw new CustomException(ErrorMsg.BUS_001, 500, ErrorMsg.BUS_001.getMessage());
+        if (!userRepository.existsById(userId)) {
+            throw new ResourceNotFoundException(ErrorMsg.AUTH_008.getMessage());
         }
+
+        Pageable pageable = PageRequest.of(page, size,
+                Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id")));
+
+        Page<JobsEntity> jobsPage = jobsRepository.findByUserId(userId,pageable);
+
+        List<JobDto> dtoList = jobsPage.getContent().stream().map(job -> {
+            JobDto dto = mapStructMapper.toJobDtoByJobEntity(job);
+            dto.setUserId(userId);
+            dto.setUsername(job.getUser().getUsername());
+            dto.setDistance(0.0);
+            return dto;
+        }).collect(Collectors.toList());
+
+        PagedResponse<JobDto> pagedDataResponse = new PagedResponse<>(
+                dtoList,
+                jobsPage.getNumber(),
+                jobsPage.getSize(),
+                jobsPage.getTotalElements(),
+                jobsPage.getTotalPages(),
+                jobsPage.isLast()
+        );
+
+        return new JobPagingResponse<>(
+                200,
+                SuccessMsg.APP_200.name(),
+                "Filtered listings compiled successfully",
+                path,
+                pagedDataResponse
+        );
+
     }
 
+
+    private void validateCoordinates(BigDecimal lat, BigDecimal lng) {
+        if (lat.compareTo(BigDecimal.valueOf(-90)) < 0 ||
+                lat.compareTo(BigDecimal.valueOf(90)) > 0 ||
+                lng.compareTo(BigDecimal.valueOf(-180)) < 0 ||
+                lng.compareTo(BigDecimal.valueOf(180)) > 0) {
+            throw new InvalidException("Latitude must be between -90 and 90 and longitude between -180 and 180");
+        }
+    }
 
 }

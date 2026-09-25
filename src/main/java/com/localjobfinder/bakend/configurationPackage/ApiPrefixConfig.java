@@ -12,4 +12,5 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 //    public void configurePathMatch(PathMatchConfigurer configurer) {
 //        configurer.addPathPrefix("api/v1/", c -> c.isAnnotationPresent(RestController.class));
 //    }
+//
 //}

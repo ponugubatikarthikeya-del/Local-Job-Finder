@@ -2,7 +2,8 @@ package com.localjobfinder.bakend.OauthPackage;
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.localjobfinder.bakend.enums.ErrorMsg;
-import com.localjobfinder.bakend.exceptionPackage.CustomException;
+import com.localjobfinder.bakend.exceptionPackage.custom_exceptions.UnauthorizedException;
+import com.localjobfinder.bakend.exceptionPackage.custom_exceptions.InvalidException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
@@ -24,9 +25,10 @@ public class OAuthProviderService {
         this.restTemplate = restTemplate;
     }
 
-    public OAuthUserDto fetchOAuthUser(String provider, String token) throws CustomException {
+    public OAuthUserDto fetchOAuthUser(String provider, String token) {
+
         if (provider == null || token == null || token.isBlank()) {
-            throw new CustomException(ErrorMsg.OAUTH_003, 400);
+            throw new InvalidException(ErrorMsg.OAUTH_003.getMessage());
         }
 
         String normalizedProvider = provider.toUpperCase().trim();
@@ -35,18 +37,19 @@ public class OAuthProviderService {
             case "GOOGLE" -> verifyGoogleUser(token);
             case "GITHUB" -> fetchGitHubUser(token);
             case "FACEBOOK" -> fetchFacebookUser(token);
-            default -> throw new CustomException(ErrorMsg.OAUTH_004, 400);
+            default -> throw new InvalidException(ErrorMsg.OAUTH_004.getMessage());
         };
     }
 
     // 1. Google ID Token Verification
-    private OAuthUserDto verifyGoogleUser(String idToken) throws CustomException {
+    private OAuthUserDto verifyGoogleUser(String idToken) {
         try {
-            GoogleIdToken.Payload payload = googleAuthService.verifyToken(idToken);
-            if (payload == null) {
-                throw new CustomException(ErrorMsg.OAUTH_005, 401);
-            }
 
+            GoogleIdToken.Payload payload = googleAuthService.verifyToken(idToken);
+
+            if (payload == null) {
+                throw new InvalidException(ErrorMsg.OAUTH_005.getMessage());
+            }
 
             boolean isEmailVerified = Boolean.TRUE.equals(payload.getEmailVerified());
 
@@ -57,13 +60,14 @@ public class OAuthProviderService {
                     AuthLoginEnum.GOOGLE,
                     isEmailVerified
             );
+
         } catch (Exception e) {
-            throw new CustomException(ErrorMsg.OAUTH_006, 401);
+            throw new UnauthorizedException(ErrorMsg.OAUTH_006.getMessage());
         }
     }
 
     // 2. GitHub Access Token Verification
-    private OAuthUserDto fetchGitHubUser(String accessToken) throws CustomException {
+    private OAuthUserDto fetchGitHubUser(String accessToken) {
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setBearerAuth(accessToken);
@@ -80,7 +84,7 @@ public class OAuthProviderService {
             );
 
             Map<String, Object> body = userResponse.getBody();
-            if (body == null) throw new CustomException(ErrorMsg.OAUTH_007, 400);
+            if (body == null) throw new InvalidException(ErrorMsg.OAUTH_007.getMessage());
 
             String githubId = String.valueOf(body.get("id"));
             String name = (String) body.get("name");
@@ -104,14 +108,12 @@ public class OAuthProviderService {
             }
 
             if (email == null || email.isBlank()) {
-                throw new CustomException(ErrorMsg.OAUTH_008, 400);
+                throw new UnauthorizedException(ErrorMsg.OAUTH_008.getMessage());
             }
 
             return new OAuthUserDto(githubId, email, name, AuthLoginEnum.GITHUB,isEmailVerified);
-        } catch (CustomException ce) {
-            throw ce;
         } catch (Exception e) {
-            throw new CustomException(ErrorMsg.OAUTH_009, 401);
+            throw new UnauthorizedException(ErrorMsg.OAUTH_009.getMessage());
         }
     }
 
@@ -125,6 +127,7 @@ public class OAuthProviderService {
             );
 
             List<Map<String, Object>> emailList = emailsResponse.getBody();
+
             if (emailList != null) {
                 for (Map<String, Object> emailData : emailList) {
                     if (Boolean.TRUE.equals(emailData.get("primary"))) {
@@ -139,7 +142,7 @@ public class OAuthProviderService {
     }
 
     // 3. Facebook Access Token Verification
-    private OAuthUserDto fetchFacebookUser(String accessToken) throws CustomException {
+    private OAuthUserDto fetchFacebookUser(String accessToken) {
         try {
             // Using Graph API versioned paths prevents unexpected protocol changes
             String url = "https://facebook.com" + accessToken;
@@ -153,14 +156,15 @@ public class OAuthProviderService {
             );
 
             Map<String, Object> body = response.getBody();
-            if (body == null) throw new CustomException(ErrorMsg.OAUTH_007, 400);
+
+            if (body == null) throw new InvalidException(ErrorMsg.OAUTH_007.getMessage());
 
             String fbId = (String) body.get("id");
             String name = (String) body.get("name");
             String email = (String) body.get("email");
 
             if(email == null  || email.isBlank()) {
-                throw new CustomException(ErrorMsg.OAUTH_008, 400);
+                throw new InvalidException(ErrorMsg.OAUTH_008.getMessage());
             }
 
             // Facebook Graph API only returns an email address if it has been verified by the user
@@ -168,7 +172,7 @@ public class OAuthProviderService {
 
             return new OAuthUserDto(fbId, email, name, AuthLoginEnum.FACEBOOK, isEmailVerified);
         } catch (Exception e) {
-            throw new CustomException(ErrorMsg.OAUTH_011, 401);
+            throw new UnauthorizedException(ErrorMsg.OAUTH_011.getMessage());
         }
     }
 }

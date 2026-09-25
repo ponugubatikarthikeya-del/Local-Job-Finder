@@ -7,9 +7,9 @@ import com.localjobfinder.bakend.dbEntity.ReviewEntity;
 import com.localjobfinder.bakend.dbEntity.UserEntity;
 import com.localjobfinder.bakend.enums.ErrorMsg;
 import com.localjobfinder.bakend.enums.JobStatusEnum;
-import com.localjobfinder.bakend.exceptionPackage.CustomException;
-import com.localjobfinder.bakend.notification.job.JobNotificationEvent;
-import com.localjobfinder.bakend.notification.job.JobReviewNotificationDto;
+import com.localjobfinder.bakend.exceptionPackage.custom_exceptions.AccessDeniedException;
+import com.localjobfinder.bakend.exceptionPackage.custom_exceptions.InvalidException;
+import com.localjobfinder.bakend.exceptionPackage.custom_exceptions.ResourceNotFoundException;
 import com.localjobfinder.bakend.repository.ApplicationJobsRepository;
 import com.localjobfinder.bakend.repository.JobsRepository;
 import com.localjobfinder.bakend.repository.ReviewRepository;
@@ -45,29 +45,30 @@ public class ReviewService implements ReviewServiceInterface  {
 
     @Override
     @Transactional
-    public JobResponse submitReview(Long reviewerId, SubmitReviewRequest request, String path) throws CustomException {
+    public JobResponse submitReview(Long reviewerId, SubmitReviewRequest request, String path) {
 
         // 1. Fetch job structure and check status criteria
         JobsEntity job = jobsRepository.findById(request.getJobId())
-                .orElseThrow(() -> new CustomException(ErrorMsg.JOB_001, 404));
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorMsg.JOB_001.getMessage()));
 
         if (!JobStatusEnum.COMPLETED.equals(job.getStatus())) {
-            throw new CustomException(ErrorMsg.JOB_002, 400);
+            throw new InvalidException((ErrorMsg.JOB_002.getMessage()));
         }
 
         // 2. Prevent duplicate submissions across the same layout constraint bounds
         if (reviewRepository.existsByJobIdAndReviewerId(job.getId(), reviewerId)) {
-            throw new CustomException(ErrorMsg.JOB_003, 409);
+            throw new InvalidException(ErrorMsg.JOB_003.getMessage()); // 409 status code
         }
 
         // 3. Find the accepted worker for the job
         ApplicationJobsEntity placement = applicationJobsRepository.findAcceptedApplicant(job.getId())
-                .orElseThrow(() -> new CustomException(ErrorMsg.JOB_004, 404));
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorMsg.JOB_004.getMessage()));
 
         Long workerId = placement.getUser().getId();
         Long ownerId = job.getUser().getId();
 
         UserEntity reviewerEntity = userRepository.getReferenceById(reviewerId);
+
         UserEntity receiverEntity;
 
         // 4. Determine Dynamic Direction Routing Strategy
@@ -79,7 +80,7 @@ public class ReviewService implements ReviewServiceInterface  {
             receiverEntity = userRepository.getReferenceById(ownerId);
         } else {
             // Strangers attempting access bypass
-            throw new CustomException(ErrorMsg.RREVIW_001, 403);
+            throw new AccessDeniedException(ErrorMsg.RREVIW_001.getMessage());
         }
 
         // 5. Build and save the review structure
@@ -91,35 +92,35 @@ public class ReviewService implements ReviewServiceInterface  {
         review.setComment(request.getComment());
         reviewRepository.save(review);
 
-        // 6. PRODUCTION CORRECTED: Asynchronously notify the receiver via unified multi-parameter payload format
-        try {
-            // Package structured details so the mobile app can parse them directly from the FCM data bundle
-            JobReviewNotificationDto reviewPayload = new JobReviewNotificationDto(
-                    job.getId(),
-                    job.getTitle(),
-                    reviewerEntity.getId(),
-                    reviewerEntity.getUsername(),
-                    request.getRating(),
-                    request.getComment()
-            );
-
-            String title = "New Review Received! ⭐️";
-            String msg = reviewerEntity.getUsername() + " left you a " + request.getRating() + "-star rating.";
-
-            // Dispatches matching all 5 constructor parameters perfectly
-            eventPublisher.publishEvent(new JobNotificationEvent(
-                    receiverEntity.getId(), // 1. targetUserId
-                    title,                  // 2. title
-                    msg,                    // 3. message
-                    "JOB_REVIEWED",         // 4. notificationType
-                    reviewPayload           // 5. detailsPayload
-            ));
-
-            log.info("Successfully pushed paged async review event notice for receiverId={}", receiverEntity.getId());
-        } catch (Exception e) {
-            // Production rule: Log payload pipeline faults safely, never roll back database states for side-effect metrics
-            log.error("Failed to compile asynchronous review notification event dispatch parameters: ", e);
-        }
+//        // 6. PRODUCTION CORRECTED: Asynchronously notify the receiver via unified multi-parameter payload format
+//        try {
+//            // Package structured details so the mobile app can parse them directly from the FCM data bundle
+//            JobReviewNotificationDto reviewPayload = new JobReviewNotificationDto(
+//                    job.getId(),
+//                    job.getTitle(),
+//                    reviewerEntity.getId(),
+//                    reviewerEntity.getUsername(),
+//                    request.getRating(),
+//                    request.getComment()
+//            );
+//
+//            String title = "New Review Received! ⭐️";
+//            String msg = reviewerEntity.getUsername() + " left you a " + request.getRating() + "-star rating.";
+//
+//            // Dispatches matching all 5 constructor parameters perfectly
+//            eventPublisher.publishEvent(new JobNotificationEvent(
+//                    receiverEntity.getId(), // 1. targetUserId
+//                    title,                  // 2. title
+//                    msg,                    // 3. message
+//                    "JOB_REVIEWED",         // 4. notificationType
+//                    reviewPayload           // 5. detailsPayload
+//            ));
+//
+//            log.info("Successfully pushed paged async review event notice for receiverId={}", receiverEntity.getId());
+//        } catch (Exception e) {
+//            // Production rule: Log payload pipeline faults safely, never roll back database states for side-effect metrics
+//            log.error("Failed to compile asynchronous review notification event dispatch parameters: ", e);
+//        }
 
         return new JobResponse(201, "REVIEW_SUBMITTED", "Review saved successfully.", path);
     }

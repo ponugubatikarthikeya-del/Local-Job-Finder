@@ -5,17 +5,20 @@ import com.localjobfinder.bakend.enums.JobTypeEnum;
 import com.localjobfinder.bakend.enums.JobStatusEnum;
 import jakarta.persistence.*;
 import lombok.Data;
-
+import org.hibernate.annotations.CreationTimestamp;
+import org.locationtech.jts.geom.Point;
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.time.LocalDateTime;
+
 
 @Data
 @Entity
 @Table(name = "jobs",indexes = {
+        @Index(name = "idx_jobs_search_filter",columnList = "title,description,category"),
         @Index(name = "idx_jobs_location",columnList = "latitude,longitude"),
         @Index(name = "idx_jobs_status" , columnList = "status"),
-        @Index(name = "idx_jobs_created_at" , columnList = "created_at")
+        @Index(name = "idx_jobs_created_at" , columnList = "created_at"),
+        @Index(name = "idx_jobs_spatial_location",columnList = "location")
 })
 
 public class JobsEntity {
@@ -53,8 +56,11 @@ public class JobsEntity {
     @Column(name = "longitude", precision = 11, scale = 8, nullable = false)
     private BigDecimal longitude;
 
-    @Column(name = "address", length = 255) // Matched VARCHAR(255)
+    @Column(name = "address",length = 255)
     private String address;
+
+    @Column(columnDefinition = "geometry SRID 4326")
+    private Point location; // 👈 Hibernate Spatial binds to this column automatically
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status")
@@ -63,10 +69,16 @@ public class JobsEntity {
     @Column(name = "job_time")
     private Instant jobTime;
 
-    @Column(name = "created_at", updatable = false, insertable = false)
-    private Instant createdAt = Instant.now();
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false)
+    private Instant createdAt ;
 
     @Column(name = "updated_at", insertable = false, updatable = false)
     private Instant updatedAt ;
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id", referencedColumnName = "job_id", insertable = false, updatable = false)
+    private ActiveJobsListEntity activeListing;
+
 
 }

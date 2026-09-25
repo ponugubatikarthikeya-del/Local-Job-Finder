@@ -2,7 +2,9 @@ package com.localjobfinder.bakend.repository;
 
 import com.localjobfinder.bakend.dbEntity.TokenEntity;
 import com.localjobfinder.bakend.dbEntity.UserEntity;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -17,7 +19,10 @@ public interface TokenRepository extends JpaRepository<TokenEntity, Long> {
 
     Optional<TokenEntity> findByDeviceId(String deviceId);
 
-    Optional<TokenEntity> findByUserIdAndDeviceId(Long userId, String deviceId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT t FROM TokenEntity t WHERE t.user.id = :userId AND t.deviceId = :deviceId")
+    Optional<TokenEntity> findByUserIdAndDeviceIdWithLock(@Param("userId") Long userId, @Param("deviceId") String deviceId);
 
     Optional<TokenEntity> findByHashResetKey(String hashResetKey);
 
@@ -44,5 +49,7 @@ public interface TokenRepository extends JpaRepository<TokenEntity, Long> {
     @Query("DELETE FROM TokenEntity t WHERE t.user.id = :userId")
     void deleteByUserId(@Param("userId") Long userId);
 
+
+    Optional<TokenEntity> findByHashRefreshTokenAndRevokedFalse(String hashRefreshToken);
 
 }

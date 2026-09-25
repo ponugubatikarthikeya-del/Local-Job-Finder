@@ -10,6 +10,7 @@ CREATE TABLE jobs (
     latitude DECIMAL(10,8) NOT NULL,
     longitude DECIMAL(11,8) NOT NULL,
     address VARCHAR(255),
+    location POINT SRID 4326 NOT NULL,
     status ENUM('OPEN', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED') DEFAULT 'OPEN',
     job_time TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ,
@@ -18,6 +19,8 @@ CREATE TABLE jobs (
     CONSTRAINT fk_job_owner FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+CREATE INDEX idx_jobs_search_filter on jobs(title,description(255),category);
 CREATE INDEX idx_jobs_location on jobs(latitude,longitude);
 CREATE INDEX idx_jobs_status ON jobs(status);
 CREATE INDEX idx_jobs_created_at ON jobs(created_at);
+CREATE SPATIAL INDEX idx_jobs_spatial_location ON jobs(location);

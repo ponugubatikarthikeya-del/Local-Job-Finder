@@ -1,6 +1,5 @@
 package com.localjobfinder.bakend.exceptionPackage;
 
-import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
 import com.localjobfinder.bakend.enums.ErrorMsg;
 import com.localjobfinder.bakend.responsePackage.AuthResponse;
 import com.localjobfinder.bakend.utilsPackage.SecurityUtils;
@@ -10,123 +9,125 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import tools.jackson.databind.exc.UnrecognizedPropertyException;
 
+import java.io.IOException;
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
 
+
     private String getPath(HttpServletRequest request) {
         return SecurityUtils.sanitize(request.getRequestURI());
     }
 
-    @ExceptionHandler(CustomException.class)
-    public ResponseEntity<AuthResponse> handleException(
-                 CustomException ex, HttpServletRequest request ){
+    @ExceptionHandler(ApplicationCustomException.class)
+    public ResponseEntity<ApiErrorResponse> handleApplicationCustomException(
+            ApplicationCustomException ex, HttpServletRequest request) {
 
-         String message = ex.getMessage() != null && !ex.getMessage().isBlank() ? ex.getMessage() : ex.getErrorCode().getMessage();
+        String path = getPath(request);
 
-         AuthResponse authResponse = new AuthResponse(
-                 ex.getStatus(),
-                 ex.getErrorCode().name(),
-                 message,
-                 getPath(request)
-         );
+        ApiErrorResponse response = ApiErrorResponse.builder()
+                .timestamp(Instant.now())
+                .status(ex.getHttpStatus().value())
+                .errorCode(ex.getErrorCode())
+                .errorMessage(ex.getMessage())
+                .path(path)
+                .build();
 
-         return ResponseEntity.status(authResponse.getStatus()).body(authResponse);
-        }
+        return new ResponseEntity<>(response,ex.getHttpStatus());
 
-    @ExceptionHandler(AuthenticationException.class)
-    public ResponseEntity<AuthResponse> handleAuthenticationException(
-            AuthenticationException ex, HttpServletRequest request){
-
-        AuthResponse authResponse = new AuthResponse(
-                401,
-                ErrorMsg.AUTH_004.name(),
-                ex.getMessage(),
-                getPath(request)
-        );
-
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(authResponse);
-    }
-
-    @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<AuthResponse> handleAccessDeniedException(
-            AccessDeniedException ex, HttpServletRequest request){
-
-        AuthResponse authResponse = new AuthResponse(
-                403,
-                ErrorMsg.GEN_001.name(),
-                "Access denied",
-                getPath(request)
-        );
-
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(authResponse);
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<AuthResponse> handleException(
-            Exception ex, HttpServletRequest request){
+    public ResponseEntity<ApiErrorResponse> handleException(Exception ex, HttpServletRequest request) {
 
-        AuthResponse authResponse = new AuthResponse(
-                500,
-                ErrorMsg.GEN_001.name(),
-                ErrorMsg.GEN_001.getMessage(),
-                getPath(request)
-        );
+        ApiErrorResponse response = ApiErrorResponse.builder()
+                .timestamp(Instant.now())
+                .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
+                .errorCode("INTERNAL_SERVER_ERROR")
+                .errorMessage(ex.getMessage())
+//                .errorMessage("an unexcepted error occurs.please contact support")
+                .path(getPath(request))
+                .build();
 
-        return ResponseEntity.status(authResponse.getStatus()).body(authResponse);
+        return new ResponseEntity<>(response,HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
-    // Handle Validation Errors
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiErrorResponse> handleIllegalArgument(
+            IllegalArgumentException ex, HttpServletRequest request) {
+
+        ApiErrorResponse response = ApiErrorResponse.builder()
+                .timestamp(Instant.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .errorCode("BAD_REQUEST")
+                .errorMessage(ex.getMessage())
+                .path(getPath(request))
+                .build();
+
+        return ResponseEntity.badRequest().body(response);
+    }
+
+    @ExceptionHandler(IOException.class)
+    public ResponseEntity<ApiErrorResponse> handleIOException(
+            IOException ex, HttpServletRequest request ) {
+
+        ApiErrorResponse response = ApiErrorResponse.builder()
+                .timestamp(Instant.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .errorCode("BAD_REQUEST")
+                .errorMessage(ex.getMessage())
+                .path(getPath(request))
+                .build();
+
+        return ResponseEntity.badRequest().body(response);
+    }
+
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<AuthResponse> handleValidationException(
-            MethodArgumentNotValidException ex,HttpServletRequest request){
+    public ResponseEntity<ApiErrorResponse> handleMethodArgumentNotValid(
+            MethodArgumentNotValidException ex, HttpServletRequest request ) {
 
-//        fieldError.getField() + ": "
-        String errorMessage = ex.getBindingResult()
-                .getFieldErrors()
-                .stream()
-                .map(fieldError -> fieldError.getDefaultMessage())
-                .distinct()
-                .collect(Collectors.joining(", "));
+        Map<String, String> errors = new HashMap<>();
 
-        AuthResponse authResponse = new AuthResponse(
-                HttpStatus.BAD_REQUEST.value(),
-                ErrorMsg.VAL_003.name(),
-                errorMessage,
-                getPath(request)
-        );
+        ex.getBindingResult().getAllErrors().forEach((error) -> {
+            if (error instanceof FieldError fieldError) { // Safe pattern matching (Java 16+)
+                errors.put(fieldError.getField(), fieldError.getDefaultMessage());
+            } else {
+                // Handles global class-level errors cleanly without crashing
+                errors.put(error.getObjectName(), error.getDefaultMessage());
+            }
+        });
 
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(authResponse);
-    }
+        ApiErrorResponse response = ApiErrorResponse.builder()
+                .timestamp(Instant.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .errorCode("BAD_REQUEST")
+                .errorMessage("Input validation failed")
+                .validationErrors(errors)
+                .path(getPath(request))
+                .build();
 
-    // Handle Firebase errors
-    @ExceptionHandler(ExecutionException.class)
-    public ResponseEntity<AuthResponse> handleFirebaseException(
-            ExecutionException ex,
-            HttpServletRequest request) {
-
-        String safePath = SecurityUtils.sanitize(request.getRequestURI());
-
-        AuthResponse response = new AuthResponse(
-                500,
-                "FIREBASE_ERROR",
-                "Firebase operation failed",
-                safePath
-        );
-
-        return ResponseEntity.status(500).body(response);
+        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }
 
 
     // user send extra fields as in request
     @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ResponseEntity<AuthResponse> handleUnknownFields(HttpMessageNotReadableException ex, HttpServletRequest request) {
+    public ResponseEntity<ApiErrorResponse> handleUnknownFields(HttpMessageNotReadableException ex, HttpServletRequest request) {
         String errorMessage = "Malformed JSON request or unrecognized fields provided.";
 
         // Extract exact field name if caused by UnrecognizedPropertyException
@@ -134,16 +135,45 @@ public class GlobalExceptionHandler {
             errorMessage = "Unrecognized field '" + unrecognizedEx.getPropertyName() + "' is not allowed.";
         }
 
-        String safePath = SecurityUtils.sanitize(request.getRequestURI());
+        ApiErrorResponse response = ApiErrorResponse.builder()
+                .timestamp(Instant.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .errorCode("BAD_REQUEST")
+                .errorMessage(errorMessage)
+                .path(getPath(request))
+                .build();
 
-        AuthResponse error = new AuthResponse(
-                400,
-                ErrorMsg.VAL_004.name(),
-                errorMessage,
-                safePath
-        );
+        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
 
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
+
+    // for params validation
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    public ResponseEntity<ApiErrorResponse> handleMethodValidationException(
+            HandlerMethodValidationException exception,
+            HttpServletRequest request
+    ) {
+        Map<String, String> validationErrors = new LinkedHashMap<>();
+
+        exception.getParameterValidationResults().forEach(result -> {
+            String paramName = result.getMethodParameter().getParameterName();
+            result.getResolvableErrors().forEach(error ->
+                    validationErrors.merge(
+                            paramName != null ? paramName : "request",
+                            Objects.requireNonNull(error.getDefaultMessage()),
+                            (existing, incoming) -> existing + ", " + incoming));
+        });
+
+        ApiErrorResponse response = ApiErrorResponse.builder()
+                .timestamp(Instant.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .errorCode("VALIDATION_ERROR")
+                .errorMessage("Request validation failed.")
+                .path(getPath(request))
+                .validationErrors(validationErrors)
+                .build();
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
 }

@@ -2,14 +2,12 @@ package com.localjobfinder.bakend.security.jwtTokenPackage;
 
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.localjobfinder.bakend.exceptionPackage.CustomException;
-import com.localjobfinder.bakend.responsePackage.AuthResponse;
-import com.localjobfinder.bakend.utilsPackage.SecurityUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -38,7 +36,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
+                                   @NotNull HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
 
         // get header
@@ -70,42 +68,32 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                             );
 
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+
                     SecurityContextHolder.getContext().setAuthentication(authToken);
+
                 }
             }
-        } catch (CustomException ex) {
-            AuthResponse authResponse = new AuthResponse(
-                    ex.getStatus(),
-                    ex.getErrorCode().name(),
-                    ex.getErrorCode().getMessage(),
-                    SecurityUtils.sanitize(request.getRequestURI())
-            );
 
-            writeErrorResponse(authResponse, response);
-            return;
         } catch (Exception ex) {
             // unexpected exception during auth filter
-            AuthResponse authResponse = new AuthResponse(
-                    401,
-                    "TOKEN_INVALID",
-                    "Token validation failed",
-                    SecurityUtils.sanitize(request.getRequestURI())
-            );
-            writeErrorResponse(authResponse, response);
-            return;
+            try {
+                throw new Exception("Token validation failed");
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
         }
 
         filterChain.doFilter(request, response);
     }
 
 
-    private void writeErrorResponse(AuthResponse authResponse, HttpServletResponse response) throws IOException {
-        // Set status and content type
-        response.setStatus(authResponse.getStatus());
-        response.setContentType("application/json");
-
-        // Write JSON using the class-level pre-configured mapper
-        String json = mapper.writeValueAsString(authResponse);
-        response.getWriter().write(json);
-    }
+//    private void writeErrorResponse(AuthResponse authResponse, HttpServletResponse response) throws IOException {
+//        response.setStatus(authResponse.getStatus());
+//        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+//        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+//
+//        String json = mapper.writeValueAsString(authResponse);
+//        response.getWriter().write(json);
+//        response.getWriter().flush();
+//    }
 }
