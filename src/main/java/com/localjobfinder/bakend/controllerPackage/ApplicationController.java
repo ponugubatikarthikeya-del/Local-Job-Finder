@@ -1,9 +1,13 @@
 package com.localjobfinder.bakend.controllerPackage;
 
-import com.localjobfinder.bakend.exceptionPackage.CustomException;
+import com.localjobfinder.bakend.dtoPackage.ApplicantDto;
+import com.localjobfinder.bakend.dtoPackage.UserDto;
+import com.localjobfinder.bakend.paging.JobPagingResponse;
+import com.localjobfinder.bakend.paging.PagedResponse;
 import com.localjobfinder.bakend.responsePackage.JobResponse;
 import com.localjobfinder.bakend.responsePackage.ViewApplicantsResponse;
-import com.localjobfinder.bakend.security.jwtTokenPackage.JwtSecurityService;
+import com.localjobfinder.bakend.security.jwtTokenPackage.JwtDataProviderService;
+import com.localjobfinder.bakend.serviceInterfacePackage.ApplicationServiceInterface;
 import com.localjobfinder.bakend.servicePackage.ApplicationService;
 import com.localjobfinder.bakend.utilsPackage.SecurityUtils;
 import jakarta.servlet.http.HttpServletRequest;
@@ -26,24 +30,23 @@ public class ApplicationController {
         return SecurityUtils.sanitize(request.getRequestURI());
     }
 
-    private final ApplicationService applicationService;
-    private final JwtSecurityService jwtSecurityService;
+    private final ApplicationServiceInterface applicationService;
+    private final JwtDataProviderService jwtDataProviderService;
 
     @Autowired
-    public ApplicationController(ApplicationService applicationService, JwtSecurityService jwtSecurityService) {
+    public ApplicationController(ApplicationServiceInterface applicationService, JwtDataProviderService jwtDataProviderService) {
         this.applicationService = applicationService;
-        this.jwtSecurityService = jwtSecurityService;
+        this.jwtDataProviderService = jwtDataProviderService;
     }
 
     @PostMapping("applyJob/{jobId}")
     public ResponseEntity<JobResponse> applyJob(
             @PathVariable Long jobId,
-            HttpServletRequest httpServletRequest
-    ) throws CustomException {
+            HttpServletRequest httpServletRequest) {
 
         log.info("applyJob api called for jobId={}", jobId);
 
-        Long userId = jwtSecurityService.getCurrentUserId();
+        Long userId = jwtDataProviderService.getCurrentUserId();
 
         log.debug("authenticated userId={}", userId);
 
@@ -53,22 +56,21 @@ public class ApplicationController {
 
 
     @GetMapping("viewApplicants/{jobId}")
-    public ResponseEntity<ViewApplicantsResponse> viewApplicants(
+    public ResponseEntity<JobPagingResponse<PagedResponse<ApplicantDto>>> viewApplicants(
             @PathVariable Long jobId,
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "20") int size,
-            HttpServletRequest httpServletRequest
-    ) throws CustomException {
+            HttpServletRequest httpServletRequest ) {
 
         log.info("viewApplicants api called for jobId={}", jobId);
 
-        Long userId = jwtSecurityService.getCurrentUserId();
+        Long userId = jwtDataProviderService.getCurrentUserId();
 
         log.debug("authenticated userId={}", userId);
 
-        Pageable pageable = PageRequest.of(page, size);
+        JobPagingResponse<PagedResponse<ApplicantDto>> response = applicationService
+                .viewApplicants(getPath(httpServletRequest), userId, jobId,page,size);
 
-        ViewApplicantsResponse response = applicationService.viewApplicants(getPath(httpServletRequest), userId, jobId,pageable);
         return ResponseEntity.status(HttpStatusCode.valueOf(response.getStatus())).body(response);
     }
 
@@ -77,12 +79,11 @@ public class ApplicationController {
     public ResponseEntity<JobResponse> acceptApplicant(
             @PathVariable Long jobId,
             @PathVariable Long applicantId,
-            HttpServletRequest httpServletRequest
-    ) throws CustomException {
+            HttpServletRequest httpServletRequest ) {
 
         log.info("acceptApplicant api called for jobId={}, applicantId={}", jobId, applicantId);
 
-        Long userId = jwtSecurityService.getCurrentUserId();
+        Long userId = jwtDataProviderService.getCurrentUserId();
 
         log.debug("authenticated userId={}", userId);
 
@@ -95,12 +96,11 @@ public class ApplicationController {
     public ResponseEntity<JobResponse> rejectApplicant(
             @PathVariable Long jobId,
             @PathVariable Long applicantId,
-            HttpServletRequest httpServletRequest
-    ) throws CustomException {
+            HttpServletRequest httpServletRequest ) {
 
         log.info("rejectApplicant api called for jobId={}, applicantId={}", jobId, applicantId);
 
-        Long userId = jwtSecurityService.getCurrentUserId();
+        Long userId = jwtDataProviderService.getCurrentUserId();
 
         log.debug("authenticated userId={}", userId);
 

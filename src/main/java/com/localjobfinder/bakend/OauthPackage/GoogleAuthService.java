@@ -5,7 +5,7 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 import com.localjobfinder.bakend.enums.ErrorMsg;
-import com.localjobfinder.bakend.exceptionPackage.CustomException;
+import com.localjobfinder.bakend.exceptionPackage.custom_exceptions.UnauthorizedException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -17,7 +17,7 @@ public class GoogleAuthService {
     @Value("${spring.security.oauth2.client.registration.google.client-id}")
     private String googleClientId;
 
-    public GoogleIdToken.Payload verifyToken(String idTokenString) throws CustomException {
+    public GoogleIdToken.Payload verifyToken(String idTokenString)  {
         try {
             GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(
                     new NetHttpTransport(),
@@ -30,10 +30,10 @@ public class GoogleAuthService {
             if (idToken != null) {
                 return idToken.getPayload();
             } else {
-                throw new CustomException(ErrorMsg.OAUTH_001, 401);
+                throw new UnauthorizedException(ErrorMsg.OAUTH_001.getMessage());
             }
         } catch (Exception e) {
-            throw new CustomException(ErrorMsg.OAUTH_002, 401);
+            throw new UnauthorizedException(ErrorMsg.OAUTH_002.getMessage());
         }
     }
 }

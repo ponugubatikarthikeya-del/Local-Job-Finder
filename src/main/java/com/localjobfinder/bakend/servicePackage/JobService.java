@@ -1,17 +1,20 @@
 package com.localjobfinder.bakend.servicePackage;
 
 import com.localjobfinder.bakend.apiDataPackage.PostJobRequest;
-import com.localjobfinder.bakend.components.GeometryUtils;
 import com.localjobfinder.bakend.dbEntity.*;
 
 import com.localjobfinder.bakend.dtoPackage.JobDto;
 import com.localjobfinder.bakend.enums.*;
-import com.localjobfinder.bakend.exceptionPackage.CustomException;
+import com.localjobfinder.bakend.exceptionPackage.custom_exceptions.AccessDeniedException;
+import com.localjobfinder.bakend.exceptionPackage.custom_exceptions.UnauthorizedException;
+import com.localjobfinder.bakend.exceptionPackage.custom_exceptions.InvalidException;
+import com.localjobfinder.bakend.exceptionPackage.custom_exceptions.ResourceNotFoundException;
 import com.localjobfinder.bakend.repository.*;
 import com.localjobfinder.bakend.responsePackage.JobResponse;
 import com.localjobfinder.bakend.responsePackage.UserResponse;
 import com.localjobfinder.bakend.serviceInterfacePackage.JobServiceInterface;
-import org.modelmapper.ModelMapper;
+import com.localjobfinder.bakend.utilsPackage.MapStructMapper;
+import com.localjobfinder.bakend.components.GeometryUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,81 +23,77 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 
-
-
 @Service
 public class JobService implements JobServiceInterface {
 
     private final JobsRepository jobsRepository;
     private final UserRepository userRepository;
     private final ActiveJobsListRepository activeJobsListRepository;
-    private final ProfileRepository profileRepository;
+    private final MapStructMapper mapStructMapper;
     private final GeometryUtils geometryUtils;
-    private final ModelMapper modelMapper;
 
     private final ApplicationJobsRepository applicationJobsRepository;
 
     private static final Logger log = LoggerFactory.getLogger(JobService.class);
 
     @Autowired
-    public JobService(JobsRepository jobsRepository, UserRepository userRepository,
-                      GeometryUtils geometryUtils, ActiveJobsListRepository activeJobsListRepository,
-                      ProfileRepository profileRepository,
-                      ApplicationJobsRepository applicationJobsRepository, ModelMapper modelMapper) {
+    public JobService(JobsRepository jobsRepository, UserRepository userRepository,ActiveJobsListRepository activeJobsListRepository,
+                      ApplicationJobsRepository applicationJobsRepository,MapStructMapper mapStructMapper,
+                      GeometryUtils geometryUtils ){
         this.jobsRepository = jobsRepository;
         this.userRepository = userRepository;
         this.activeJobsListRepository = activeJobsListRepository;
+        this.mapStructMapper = mapStructMapper;
         this.geometryUtils = geometryUtils;
-        this.modelMapper = modelMapper;
-        this.profileRepository = profileRepository;
         this.applicationJobsRepository = applicationJobsRepository;
     }
 
     @Override
     @Transactional
-    public UserResponse postJob(PostJobRequest postJobRequest, String path, Long userId) throws CustomException {
+    public UserResponse postJob(PostJobRequest postJobRequest, String path, Long userId)  {
 
         if (userId == null || userId <= 0) {
-            throw new CustomException(ErrorMsg.AUTH_004, 400, "User ID is null or empty");
+            throw new InvalidException("User ID is null or empty");
         }
 
         UserEntity userEntity = userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(ErrorMsg.AUTH_008, 404, "User context not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorMsg.AUTH_008.getMessage()));
 
         // Validation Constraints
         if (postJobRequest.getTitle() == null || postJobRequest.getTitle().isBlank()) {
-            throw new CustomException(ErrorMsg.BUS_001, 400, "Job title cannot be empty");
+            throw new InvalidException("Job title cannot be empty");
         }
 
         if (postJobRequest.getPayAmount() == null || postJobRequest.getPayAmount().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new CustomException(ErrorMsg.BUS_001, 400, "Pay amount must be greater than 0");
+            throw new InvalidException("Pay amount must be greater than 0");
         }
 
         if (postJobRequest.getLatitude() == null || postJobRequest.getLongitude() == null) {
-            throw new CustomException(ErrorMsg.BUS_001, 400, "Location coordinates are required");
+            throw new InvalidException("Location coordinates are required");
         }
 
-        JobsEntity postJob = new JobsEntity();
-        postJob.setTitle(postJobRequest.getTitle());
-        postJob.setDescription(postJobRequest.getDescription());
-        postJob.setCategory(postJobRequest.getCategory());
-        postJob.setPayAmount(postJobRequest.getPayAmount());
-        postJob.setJobType(postJobRequest.getJobType());
-        postJob.setLatitude(postJobRequest.getLatitude());
-        postJob.setLongitude(postJobRequest.getLongitude());
-        postJob.setAddress(postJobRequest.getAddress());
-        postJob.setJobTime(postJobRequest.getJobTime());
+        if (postJobRequest.getAddress() == null || postJobRequest.getAddress().isBlank()) {
+            throw new InvalidException("Job address is required");
+        }
+
+        JobsEntity postJob = mapStructMapper.toJobsEntityByPostJobRequest(postJobRequest);
+
         postJob.setStatus(JobStatusEnum.OPEN);
         postJob.setUser(userEntity);
+        postJob.setAddress(postJobRequest.getAddress().trim());
+        postJob.setLocation(geometryUtils.createPoint(
+                postJobRequest.getLatitude(), postJobRequest.getLongitude()));
 
         JobsEntity savedJob = jobsRepository.save(postJob);
 
         ActiveJobsListEntity listing = new ActiveJobsListEntity();
+
         listing.setJob(savedJob);
         listing.setOwner(userEntity);
         activeJobsListRepository.save(listing);
 
-        JobDto dto = modelMapper.map(savedJob, JobDto.class);
+        JobDto dto = mapStructMapper.toJobDtoByJobEntity(savedJob);
+
         dto.setUserId(userEntity.getId());
         dto.setUsername(userEntity.getUsername());
 
@@ -103,17 +102,17 @@ public class JobService implements JobServiceInterface {
 
     @Override
     @Transactional
-    public JobResponse deleteJob(Long ownerId, Long jobId, String path) throws CustomException {
+    public JobResponse deleteJob(Long ownerId, Long jobId, String path) {
 
         if (ownerId == null || ownerId <= 0) {
-            throw new CustomException(ErrorMsg.AUTH_004, 401, "Authentication required");
+            throw new UnauthorizedException(ErrorMsg.AUTH_004.getMessage());
         }
 
         JobsEntity job = jobsRepository.findById(jobId)
-                .orElseThrow(() -> new CustomException(ErrorMsg.BUS_001, 404, "Job listing not found"));
+                .orElseThrow(() -> new ResourceNotFoundException( "Job listing not found"));
 
         if (job.getUser() == null || !ownerId.equals(job.getUser().getId())) {
-            throw new CustomException(ErrorMsg.AUTHZ_001, 403, "Unauthorized layout alter request");
+            throw new AccessDeniedException(ErrorMsg.AUTHZ_001.getMessage());
         }
 
         job.setStatus(JobStatusEnum.DELETED);
@@ -135,24 +134,25 @@ public class JobService implements JobServiceInterface {
 
     @Override
     @Transactional
-    public JobResponse jobComplete(Long ownerId, Long jobId, String path) throws CustomException {
+    public JobResponse jobComplete(Long ownerId, Long jobId, String path){
 
-        if (ownerId == null || ownerId <= 0) {
-            throw new CustomException(ErrorMsg.AUTH_004, 401, "Authentication credentials required");
+        if (ownerId == null ||  ownerId <= 0) {
+            throw new UnauthorizedException(ErrorMsg.AUTH_004.getMessage());
         }
 
         JobsEntity job = jobsRepository.findById(jobId)
-                .orElseThrow(() -> new CustomException(ErrorMsg.BUS_001, 404, "Job record not found"));
+                .orElseThrow(() -> new ResourceNotFoundException( "Job record not found"));
 
         if (job.getUser() == null || !ownerId.equals(job.getUser().getId())) {
-            throw new CustomException(ErrorMsg.AUTHZ_001, 403, "Access Denied: Only job poster can execute completion");
+            throw new AccessDeniedException( "Access Denied: Only job poster can execute completion");
         }
 
         if (job.getStatus() == JobStatusEnum.DELETED || job.getStatus() == JobStatusEnum.COMPLETED) {
-            throw new CustomException(ErrorMsg.BUS_001, 400, "Job terminal condition reached already");
+            throw new InvalidException( "Job terminal condition reached already");
         }
 
         job.setStatus(JobStatusEnum.COMPLETED);
+
         jobsRepository.save(job);
 
         // Feed Cleanup
@@ -164,65 +164,4 @@ public class JobService implements JobServiceInterface {
         return new JobResponse(200, SuccessMsg.JOB_204.name(), "Job marked as completed successfully", path);
     }
 
-//    @Override
-//    @Transactional(readOnly = true)
-//    public JobDetailsResponse getJobDetails(String path, Long userId, Long jobId) throws CustomException {
-//
-//        if (userId == null || userId <= 0) {
-//            throw new CustomException(ErrorMsg.AUTH_004, 401, "Authentication credentials required.");
-//        }
-//
-//        if (jobId == null || jobId <= 0) {
-//            throw new CustomException(ErrorMsg.BUS_001, 400, "Target Job ID is missing or invalid.");
-//        }
-//
-//        // 1. Fetch the complete job entity context
-//        JobsEntity job = jobsRepository.findById(jobId)
-//                .orElseThrow(() -> new CustomException(ErrorMsg.BUS_001, 404, "Target job listing not found."));
-//
-//        try {
-//            // 2. Map core parameters directly using ModelMapper
-//            JobDto detailsDto = modelMapper.map(job, JobDto.class);
-//
-//            // Map user properties explicitly to avoid lazy-loading initialization issues
-//            if (job.getUser() != null) {
-//                detailsDto.setUserId(job.getUser().getId());
-//                detailsDto.setUsername(job.getUser().getUsername());
-//            }
-//
-////            // 3. Evaluate context boundaries (Is the requester the creator?)
-////            boolean isOwner = job.getUser() != null && userId.equals(job.getUser().getId());
-//////            detailsDto.setOwner(isOwner);
-//
-////            // 4. Determine application tracking state for the requesting user
-////            if (isOwner) {
-////                detailsDto.setMyApplicationStatus("OWNER");
-////            } else {
-////                Optional<ApplicationJobsEntity> application =
-////                        applicationJobsRepository.findByUserIdAndJobId(userId, jobId);
-////
-////                if (application.isPresent()) {
-////                    detailsDto.setMyApplicationStatus(application.get().getStatus().name());
-////                } else {
-////                    detailsDto.setMyApplicationStatus("NOT_APPLIED");
-////                }
-////            }
-//
-//            // 5. Package output response payload layout
-//            return new JobDetailsResponse(
-//                    200,
-//                    SuccessMsg.JOB_200.name(),
-//                    "Job configuration details parsed successfully.",
-//                    path,
-//                    detailsDto
-//            );
-//
-//        } catch (Exception e) {
-//            log.error("Failed executing job description profile parsing for jobId={}", jobId, e);
-//            throw new CustomException(ErrorMsg.BUS_001, 500, "Error resolving job profile details: " + e.getMessage());
-//        }
-//    }
-
 }
-
-

@@ -2,9 +2,8 @@ package com.localjobfinder.bakend.controllerPackage;
 
 
 import com.localjobfinder.bakend.apiDataPackage.FcmTokenRequest;
-import com.localjobfinder.bakend.exceptionPackage.CustomException;
 import com.localjobfinder.bakend.responsePackage.AuthResponse;
-import com.localjobfinder.bakend.security.jwtTokenPackage.JwtSecurityService;
+import com.localjobfinder.bakend.security.jwtTokenPackage.JwtDataProviderService;
 import com.localjobfinder.bakend.servicePackage.FcmTokenService;
 import com.localjobfinder.bakend.utilsPackage.SecurityUtils;
 import jakarta.servlet.http.HttpServletRequest;
@@ -28,21 +27,20 @@ public class FcmTokenController {
 
     private final FcmTokenService fcmTokenService;
 
-    private final JwtSecurityService jwtSecurityService;
+    private final JwtDataProviderService jwtDataProviderService;
 
     @Autowired
-    public FcmTokenController(FcmTokenService fcmTokenService, JwtSecurityService jwtSecurityService){
+    public FcmTokenController(FcmTokenService fcmTokenService, JwtDataProviderService jwtDataProviderService){
         this.fcmTokenService = fcmTokenService;
-        this.jwtSecurityService = jwtSecurityService;
+        this.jwtDataProviderService = jwtDataProviderService;
     }
 
     @PutMapping("fcm-token/register")
     public ResponseEntity<AuthResponse> RegisterFcmToken(
             @Valid @RequestBody FcmTokenRequest tokenRequest,
-            HttpServletRequest httpServletRequest
-    ) throws CustomException {
+            HttpServletRequest httpServletRequest ) {
 
-        Long currentUserId = jwtSecurityService.getCurrentUserId();
+        Long currentUserId = jwtDataProviderService.getCurrentUserId();
 
         log.info("updateFcmToken api called for email={}",currentUserId);
 
@@ -55,7 +53,7 @@ public class FcmTokenController {
 //    @PostMapping("/logout")
 //    public ResponseEntity<AuthResponse> logoutToken(
 //            @RequestBody FcmTokenRequest request,
-//            HttpServletRequest httpServletRequest) throws CustomException {
+//            HttpServletRequest httpServletRequest) {
 //
 //        Long currentUserId = jwtSecurityService.getCurrentUserId();
 //

@@ -9,14 +9,16 @@ import com.localjobfinder.bakend.dtoPackage.PublicProfileDto;
 import com.localjobfinder.bakend.dtoPackage.UserDto;
 import com.localjobfinder.bakend.enums.ErrorMsg;
 import com.localjobfinder.bakend.enums.SuccessMsg;
-import com.localjobfinder.bakend.exceptionPackage.CustomException;
+import com.localjobfinder.bakend.exceptionPackage.custom_exceptions.InvalidException;
+import com.localjobfinder.bakend.exceptionPackage.custom_exceptions.ResourceNotFoundException;
+import com.localjobfinder.bakend.exceptionPackage.custom_exceptions.UnauthorizedException;
 import com.localjobfinder.bakend.repository.JobsRepository;
 import com.localjobfinder.bakend.repository.UserRepository;
-import com.localjobfinder.bakend.responsePackage.AuthResponse;
 import com.localjobfinder.bakend.responsePackage.MyProfileResponse;
 import com.localjobfinder.bakend.responsePackage.ProfileResponse;
 import com.localjobfinder.bakend.serviceInterfacePackage.ProfileServiceInterface;
-import org.modelmapper.ModelMapper;
+
+import com.localjobfinder.bakend.utilsPackage.MapStructMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,15 +35,15 @@ public class ProfileService implements ProfileServiceInterface {
 
 
     private UserRepository userRepository;
-    private ModelMapper modelMapper;
+    private MapStructMapper mapStructMapper;
     private JobsRepository jobsRepository;
 
 
     @Autowired
-    public void setUserRepository(UserRepository userRepository, ModelMapper modelMapper, JobsRepository jobsRepository)
+    public void setUserRepository(UserRepository userRepository, MapStructMapper mapStructMapper, JobsRepository jobsRepository)
     {
         this.userRepository = userRepository;
-        this.modelMapper = modelMapper;
+        this.mapStructMapper = mapStructMapper;
         this.jobsRepository = jobsRepository;
     }
 
@@ -49,42 +51,41 @@ public class ProfileService implements ProfileServiceInterface {
 
     @Override
     @Transactional(readOnly = true)
-    public MyProfileResponse getMyProfile(Long userId, String path) throws CustomException {
+    public MyProfileResponse getMyProfile(Long userId, String path) {
 
         if(userId == null){
-            throw new CustomException(ErrorMsg.AUTH_004,400,"userId is null");
+            throw new ResourceNotFoundException(ErrorMsg.AUTH_008.getMessage());
         }
 
         Optional<UserEntity> userEntity = userRepository.findById(userId);
 
         if(userEntity.isEmpty()){
-            throw new CustomException(ErrorMsg.AUTH_008,404);
+            throw new ResourceNotFoundException(ErrorMsg.AUTH_008.getMessage());
         }
 
         UserEntity user = userEntity.get();
 
-//        // map entity to DTO using ModelMapper
-//        UserDto dto = modelMapper.map(user, UserDto.class);
+//        // map entity to DTO using mapStruct
+        ProfilesEntity profile = user.getProfile();
 
-        ProfilesEntity profilesEntity = user.getProfile();
-
-        if(profilesEntity == null){
-            throw new CustomException(ErrorMsg.AUTH_008,400);
+        if(profile == null){
+            throw new ResourceNotFoundException(ErrorMsg.AUTH_008.getMessage());
         }
 
-        UserDto userDto = new UserDto();
-        userDto.setId(user.getId());
-        userDto.setUsername(user.getUsername());
-        userDto.setEmail(user.getEmail());
-        userDto.setPhone(user.getPhone());
-        userDto.setCreatedAt(user.getCreatedAt());
-        userDto.setHeadline(profilesEntity.getHeadline());
-        userDto.setSkills(profilesEntity.getSkills());
-        userDto.setDateOfBirth(profilesEntity.getDateOfBirth());
-        userDto.setCityName(profilesEntity.getCityName());
-        userDto.setRating(profilesEntity.getRating());
-        userDto.setTotalJobsCompleted(profilesEntity.getTotalJobsCompleted());
-        userDto.setUserDescription(profilesEntity.getUserDescription());
+        UserDto userDto = mapStructMapper.toUserDtoByUserEntityAndProfileEntity(user, profile);
+
+//        userDto.setId(user.getId());
+//        userDto.setUsername(user.getUsername());
+//        userDto.setEmail(user.getEmail());
+//        userDto.setPhone(user.getPhone());
+//        userDto.setCreatedAt(user.getCreatedAt());
+//        userDto.setHeadline(profilesEntity.getHeadline());
+//        userDto.setSkills(profilesEntity.getSkills());
+//        userDto.setDateOfBirth(profilesEntity.getDateOfBirth());
+//        userDto.setCityName(profilesEntity.getCityName());
+//        userDto.setRating(profilesEntity.getRating());
+//        userDto.setTotalJobsCompleted(profilesEntity.getTotalJobsCompleted());
+//        userDto.setUserDescription(profilesEntity.getUserDescription());
 
         return new MyProfileResponse(
                 200,
@@ -98,16 +99,16 @@ public class ProfileService implements ProfileServiceInterface {
 
     @Override
     @Transactional(readOnly = true)
-    public MyProfileResponse getPublicProfile(Long jobId, String path) throws CustomException {
+    public MyProfileResponse getPublicProfile(Long jobId, String path) {
 
         if(jobId == null){
-            throw new CustomException(ErrorMsg.AUTH_004,400);
+            throw new InvalidException(ErrorMsg.AUTH_004.getMessage());
         }
 
         Optional<JobsEntity> jobsEntity = jobsRepository.findById(jobId);
 
         if(jobsEntity.isEmpty()){
-            throw new CustomException(ErrorMsg.BUS_008,404);
+            throw new ResourceNotFoundException(ErrorMsg.BUS_008.getMessage());
         }
 
         JobsEntity job = jobsEntity.get();
@@ -115,25 +116,29 @@ public class ProfileService implements ProfileServiceInterface {
         Optional<UserEntity> userEntity = userRepository.findById(job.getUser().getId());
 
         if(userEntity.isEmpty()){
-            throw new CustomException(ErrorMsg.AUTH_008,404);
+            throw new ResourceNotFoundException(ErrorMsg.AUTH_008.getMessage());
         }
 
-        ProfilesEntity profilesEntity = userEntity.get().getProfile();
+        UserEntity user = userEntity.get();
+
+        ProfilesEntity profilesEntity = user.getProfile();
+
 
         if(profilesEntity == null){
-            throw new CustomException(ErrorMsg.AUTH_008,400);
+            throw new ResourceNotFoundException(ErrorMsg.AUTH_008.getMessage());
         }
 
-        PublicProfileDto profileDto = new PublicProfileDto();
+        PublicProfileDto profileDto = mapStructMapper.
+                toPPDtoByUserEntityAndPublicProfileEntity(user, profilesEntity);
 
-        profileDto.setId(profilesEntity.getId());
-        profileDto.setUsername(userEntity.get().getUsername());
-        profileDto.setHeadline(profilesEntity.getHeadline());
-        profileDto.setSkills(profilesEntity.getSkills());
-        profileDto.setCityName(profilesEntity.getCityName());
-        profileDto.setRating(profilesEntity.getRating());
-        profileDto.setTotalJobsCompleted(profilesEntity.getTotalJobsCompleted());
-        profileDto.setUserDescription(profilesEntity.getUserDescription());
+//        profileDto.setId(profilesEntity.getId());
+//        profileDto.setUsername(userEntity.get().getUsername());
+//        profileDto.setHeadline(profilesEntity.getHeadline());
+//        profileDto.setSkills(profilesEntity.getSkills());
+//        profileDto.setCityName(profilesEntity.getCityName());
+//        profileDto.setRating(profilesEntity.getRating());
+//        profileDto.setTotalJobsCompleted(profilesEntity.getTotalJobsCompleted());
+//        profileDto.setUserDescription(profilesEntity.getUserDescription());
 
         return new MyProfileResponse(
                 200,
@@ -146,15 +151,15 @@ public class ProfileService implements ProfileServiceInterface {
 
     @Override
     @Transactional
-    public ProfileResponse updateProfile(Long userId, String path, EditProfileRequest request) throws CustomException {
+    public ProfileResponse updateProfile(Long userId, String path, EditProfileRequest request) {
 
         if (userId == null) {
-            throw new CustomException(ErrorMsg.AUTH_004, 400);
+            throw new UnauthorizedException(ErrorMsg.AUTH_004.getMessage());
         }
 
         // Use a clean custom exception if user isn't found
         UserEntity user = userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(ErrorMsg.AUTH_008, 400));
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorMsg.AUTH_008.getMessage()));
 
         // 2. Dynamically apply updates to the parent UserEntity
         if (request.getUsername() != null && !request.getUsername().isBlank()) {
@@ -199,85 +204,22 @@ public class ProfileService implements ProfileServiceInterface {
         );
     }
 
-
-//    @Override
-//    @Transactional
-//    public ProfileResponse updateProfile(Long userId, String path, EditProfileRequest request) throws CustomException {
-//
-//        if(userId == null){
-//            throw new CustomException(ErrorMsg.AUTH_004,400);
-//        }
-//
-//        Optional<UserEntity> userEntity = userRepository.findById(userId);
-//
-//        if(userEntity.isEmpty()){
-//            throw new CustomException(ErrorMsg.AUTH_008,400);
-//        }
-//
-//        UserEntity user = userEntity.get();
-//
-//        // 2. Dynamically apply updates to the parent UserEntity
-//        if (request.getUsername() != null && !request.getUsername().isBlank()) {
-//            user.setUsername(request.getUsername());
-//        }
-//        if (request.getPhone() != null && !request.getPhone().isBlank()) {
-//            user.setPhone(request.getPhone());
-//        }
-//
-//        // 3. Extract the linked profile entity
-//        ProfilesEntity profile = user.getProfile();
-//
-//        if (profile == null) {
-//            // Defensive check: If no profile exists for some reason, instantiate a fresh one linked to the user
-//            profile = new ProfilesEntity();
-//            profile.setUser(user);
-//            user.setProfile(profile);
-//        }
-//
-//        // 4. Dynamically apply updates to the child ProfilesEntity
-//        if (request.getHeadline() != null) {
-//            profile.setHeadline(request.getHeadline());
-//        }
-//        if (request.getSkills() != null) {
-//            profile.setSkills(request.getSkills());
-//        }
-//        if (request.getCityName() != null) {
-//            profile.setCityName(request.getCityName());
-//        }
-//        if (request.getUserDescription() != null) {
-//            profile.setUserDescription(request.getUserDescription());
-//        }
-//        if(request.getDateOfBirth() != null){
-//            profile.setDateOfBirth(request.getDateOfBirth());
-//        }
-//
-//        // 5. Commit state. CascadeType.ALL handles propagating updates down to the profile record automatically.
-//        userRepository.save(user);
-//
-//        return new ProfileResponse(
-//                201,
-//                SuccessMsg.USER_202.name(),
-//                SuccessMsg.USER_202.getMessage(),
-//                path
-//        );
-//    }
-
     @Override
     @Transactional
-    public ProfileResponse updateUserAddress(Long id, AddressTakeRequest addressTakeRequest, String request) throws CustomException {
+    public ProfileResponse updateUserAddress(Long id, AddressTakeRequest addressTakeRequest, String request)  {
 
         if(id == null){
-            throw new CustomException(ErrorMsg.AUTH_004,400);
+            throw new UnauthorizedException(ErrorMsg.AUTH_004.getMessage());
         }
 
         if (addressTakeRequest == null) {
-            throw new CustomException(ErrorMsg.AUTH_008,400);
+            throw new InvalidException("addressTakeRequest is null");
         }
 
         Optional<UserEntity> userEntity = userRepository.findById(id);
 
         if(userEntity.isEmpty()){
-            throw new CustomException(ErrorMsg.AUTH_008,400);
+            throw new ResourceNotFoundException(ErrorMsg.AUTH_008.getMessage());
         }
 
         UserEntity user = userEntity.get();
@@ -285,7 +227,7 @@ public class ProfileService implements ProfileServiceInterface {
         ProfilesEntity profilesEntity = user.getProfile();
 
         if(profilesEntity == null){
-            throw new CustomException(ErrorMsg.AUTH_008,400);
+            throw new ResourceNotFoundException(ErrorMsg.AUTH_008.getMessage());
         }
 
         profilesEntity.setCityName(addressTakeRequest.getCityName());

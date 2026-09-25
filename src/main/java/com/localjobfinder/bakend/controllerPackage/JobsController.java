@@ -1,10 +1,10 @@
 package com.localjobfinder.bakend.controllerPackage;
 
 import com.localjobfinder.bakend.apiDataPackage.PostJobRequest;
-import com.localjobfinder.bakend.exceptionPackage.CustomException;
 import com.localjobfinder.bakend.responsePackage.JobResponse;
 import com.localjobfinder.bakend.responsePackage.UserResponse;
-import com.localjobfinder.bakend.security.jwtTokenPackage.JwtSecurityService;
+import com.localjobfinder.bakend.security.jwtTokenPackage.JwtDataProviderService;
+import com.localjobfinder.bakend.serviceInterfacePackage.JobServiceInterface;
 import com.localjobfinder.bakend.servicePackage.JobService;
 import com.localjobfinder.bakend.utilsPackage.SecurityUtils;
 import jakarta.servlet.http.HttpServletRequest;
@@ -26,23 +26,23 @@ public class JobsController {
         return SecurityUtils.sanitize(request.getRequestURI());
     }
 
-    private  final JobService jobService;
-    private final JwtSecurityService jwtSecurityService;
+    private  final JobServiceInterface jobService;
+    private final JwtDataProviderService jwtDataProviderService;
 
     @Autowired
-    public JobsController(JobService jobService, JwtSecurityService jwtSecurityService) {
+    public JobsController(JobServiceInterface jobService, JwtDataProviderService jwtDataProviderService) {
         this.jobService = jobService;
-        this.jwtSecurityService = jwtSecurityService;
+        this.jwtDataProviderService = jwtDataProviderService;
     }
 
     @PostMapping("createJob")
     public ResponseEntity<UserResponse> postJob(
            @Valid @RequestBody PostJobRequest postJobRequest,
-           HttpServletRequest httpServletRequest) throws CustomException {
+           HttpServletRequest httpServletRequest) {
 
        log.info("create job api called");
 
-       Long userId = jwtSecurityService.getCurrentUserId();
+       Long userId = jwtDataProviderService.getCurrentUserId();
 
        log.debug("authenticated userId={}", userId);
 
@@ -54,14 +54,15 @@ public class JobsController {
     @DeleteMapping("deleteJob/{jobId}")
     public ResponseEntity<JobResponse> deleteJob(
             @PathVariable Long jobId,
-            HttpServletRequest httpServletRequest
-    ) throws CustomException {
+            HttpServletRequest httpServletRequest ) {
         log.info("deleteJob api called for jobId={}", jobId);
 
-        Long userId = jwtSecurityService.getCurrentUserId();
+        Long userId = jwtDataProviderService.getCurrentUserId();
 
         log.debug("authenticated userId={}", userId);
+
         JobResponse response = jobService.deleteJob(userId,jobId,getPath(httpServletRequest));
+
         return ResponseEntity.status(HttpStatusCode.valueOf(response.getStatus())).body(response);
     }
 
@@ -69,32 +70,14 @@ public class JobsController {
     @PatchMapping("job-completed/{jobId}")
     public ResponseEntity<JobResponse> jobComplete(
             @PathVariable Long jobId,
-            HttpServletRequest httpServletRequest
-    ) throws CustomException {
+            HttpServletRequest httpServletRequest ) {
 
        log.info("jobComplete api called for jobId={}", jobId);
 
-        Long userId = jwtSecurityService.getCurrentUserId();
+        Long userId = jwtDataProviderService.getCurrentUserId();
 
         JobResponse response = jobService.jobComplete(userId,jobId,getPath(httpServletRequest));
         return ResponseEntity.status(HttpStatusCode.valueOf(response.getStatus())).body(response);
     }
-
-//    @GetMapping("job-details/{jobId}")
-//    public ResponseEntity<JobDetailsResponse> getJobDetails(
-//            @PathVariable("jobId") Long jobId,
-//            HttpServletRequest httpServletRequest
-//    ) throws CustomException {
-//
-//        log.info("getJobDetails api called for jobId={}", jobId);
-//
-//        String path = getPath(httpServletRequest);
-//        Long userId = jwtSecurityService.getCurrentUserId();
-//
-//        JobDetailsResponse response = jobService.getJobDetails(path, userId, jobId);
-//
-//        return ResponseEntity.status(HttpStatusCode.valueOf(response.getStatus())).body(response);
-//    }
-
 
 }

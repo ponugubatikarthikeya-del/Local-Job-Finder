@@ -4,6 +4,10 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
 import com.localjobfinder.bakend.enums.ApplicationStatusEnum;
+import org.hibernate.annotations.CreationTimestamp;
+import org.springframework.data.annotation.CreatedDate;
+
+import java.time.Instant;
 
 @Data
 @Entity
@@ -27,5 +31,9 @@ public class ApplicationJobsEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private ApplicationStatusEnum status = ApplicationStatusEnum.APPLIED;
+
+    @CreationTimestamp
+    @Column(name = "created_at",updatable = false)
+    private Instant createdAt;
 
 }

@@ -6,6 +6,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.locationtech.jts.geom.Point;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
+
 @Component
 public class GeometryUtils {
 
@@ -20,7 +22,15 @@ public class GeometryUtils {
         if (lat == null || lng == null) {
             return null;
         }
-        // IMPORTANT: JTS/MySQL uses (Longitude, Latitude) order
-        return geometryFactory.createPoint(new Coordinate(lng, lat));
+        return createPoint(BigDecimal.valueOf(lat), BigDecimal.valueOf(lng));
+    }
+
+    public Point createPoint(BigDecimal lat, BigDecimal lng) {
+        if (lat == null || lng == null) {
+            return null;
+        }
+        Point point = geometryFactory.createPoint(new Coordinate(lng.doubleValue(), lat.doubleValue()));
+        point.setSRID(4326);
+        return point;
     }
 }

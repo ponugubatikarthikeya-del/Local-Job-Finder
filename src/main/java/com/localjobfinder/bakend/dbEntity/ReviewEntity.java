@@ -2,6 +2,7 @@ package com.localjobfinder.bakend.dbEntity;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.Instant;
 
@@ -36,7 +37,8 @@ public class ReviewEntity {
     @Column(name = "comment", columnDefinition = "TEXT")
     private String comment;
 
-    @Column(name = "created_at", updatable = false, insertable = false)
-    private Instant createdAt = Instant.now();
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false)
+    private Instant createdAt ;
 
 }

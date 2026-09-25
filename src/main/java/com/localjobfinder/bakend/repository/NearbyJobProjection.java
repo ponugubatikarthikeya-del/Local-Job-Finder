@@ -22,6 +22,6 @@ public interface NearbyJobProjection {
     String getStatus();
     LocalDateTime getJobTime();
 
-    // WHY: This matches your dynamic "(6371 * ...) AS distance" column alias
+    // Distance is returned by MySQL ST_Distance_Sphere in kilometers.
     Double getDistance();
 }

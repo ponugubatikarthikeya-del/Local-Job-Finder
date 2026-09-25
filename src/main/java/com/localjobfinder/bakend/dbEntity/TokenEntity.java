@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.Instant;
 
@@ -53,6 +54,7 @@ public class TokenEntity {
     @Column(name = "revoked")
     private boolean revoked;
 
-    @Column(name = "created_at", insertable = false, updatable = false)
-    private Instant createdAt = Instant.now();
+    @CreationTimestamp
+    @Column(name = "created_at")
+    private Instant createdAt;
 }

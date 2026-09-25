@@ -10,28 +10,30 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
-import java.util.List;
 
 @Repository
 public interface ActiveJobsListRepository extends JpaRepository<ActiveJobsListEntity, Long> {
 
-    //address filter query
+    String SELECT_NEARBY_COLUMNS =
+            "j.id, j.user_id AS userId, u.username AS username, j.title, j.description, j.category, " +
+            "j.pay_amount AS payAmount, j.job_type AS jobType, j.latitude, j.longitude, j.address, " +
+            "j.status, j.job_time AS jobTime, " +
+            "(ST_Distance_Sphere(j.location, ST_SRID(POINT(:workerLng, :workerLat), 4326)) / 1000.0) AS distance ";
 
-    @Query(value = "SELECT j.id, j.user_id AS userId,u.username as username,j.title, j.description, j.category, j.pay_amount AS payAmount, j.job_type AS jobType, " +
-            "j.latitude, j.longitude, j.address, j.status, j.job_time AS jobTime, " +
-            "(6371 * acos(cos(radians(:workerLat)) * cos(radians(j.latitude)) * " +
-            "cos(radians(j.longitude) - radians(:workerLng)) + " +
-            "sin(radians(:workerLat)) * sin(radians(j.latitude)))) AS distance " +
+    String ACTIVE_JOBS_FROM =
             "FROM active_listings al " +
-            "JOIN jobs j ON al.job_id = j.id JOIN users u on j.user_id = u.id " +
-            "WHERE j.status = 'OPEN' " +
-            "HAVING distance <= :radius ",
-            countQuery = "SELECT count(*) FROM active_listings al " +
-                    "JOIN jobs j ON al.job_id = j.id " +
-                    "WHERE j.status = 'OPEN' AND " +
-                    "(6371 * acos(cos(radians(:workerLat)) * cos(radians(j.latitude)) * " +
-                    "cos(radians(j.longitude) - radians(:workerLng)) + " +
-                    "sin(radians(:workerLat)) * sin(radians(j.latitude)))) <= :radius",
+            "JOIN jobs j ON al.job_id = j.id " +
+            "JOIN users u ON j.user_id = u.id ";
+
+    String SPATIAL_RADIUS_FILTER =
+            "j.location IS NOT NULL AND " +
+            "ST_Distance_Sphere(j.location, ST_SRID(POINT(:workerLng, :workerLat), 4326)) <= (:radius * 1000.0) ";
+
+    @Query(value = "SELECT " + SELECT_NEARBY_COLUMNS + ACTIVE_JOBS_FROM +
+            "WHERE j.status = 'OPEN' AND " + SPATIAL_RADIUS_FILTER +
+            "ORDER BY j.created_at DESC, j.id DESC",
+            countQuery = "SELECT COUNT(*) " + ACTIVE_JOBS_FROM +
+                    "WHERE j.status = 'OPEN' AND " + SPATIAL_RADIUS_FILTER,
             nativeQuery = true)
     Page<NearbyJobProjection> findNearbyActiveJobs(
             @Param("workerLat") BigDecimal workerLat,
@@ -44,47 +46,28 @@ public interface ActiveJobsListRepository extends JpaRepository<ActiveJobsListEn
     @Query("DELETE FROM ActiveJobsListEntity al WHERE al.job.id = :jobId")
     void deleteByJobId(@Param("jobId") Long jobId);
 
-    //search query
-
-    @Query(value = "SELECT j.id,j.user_id AS userId,u.username as username, j.title, j.description, j.category, j.pay_amount AS payAmount, j.job_type AS jobType, " +
-            "j.latitude, j.longitude, j.address, j.status, j.job_time AS jobTime, " +
-            "(6371 * acos(cos(radians(:workerLat)) * cos(radians(j.latitude)) * " +
-            "cos(radians(j.longitude) - radians(:workerLng)) + " +
-            "sin(radians(:workerLat)) * sin(radians(j.latitude)))) AS distance " +
-            "FROM active_listings al " +
-            "JOIN jobs j ON al.job_id = j.id JOIN users u on j.user_id = u.id " +
-            "WHERE j.status = 'OPEN' " +
-            "AND (:category IS NULL OR j.category = :category) " +
-            "AND (:searchKey IS NULL OR LOWER(j.title) LIKE LOWER(CONCAT('%', :searchKey, '%')) OR LOWER(j.description) LIKE LOWER(CONCAT('%', :searchKey, '%'))) " +
-            "HAVING distance <= :radius " +
-            "ORDER BY distance ASC LIMIT :limit OFFSET :offset",
+    @Query(value = "SELECT " + SELECT_NEARBY_COLUMNS + ACTIVE_JOBS_FROM +
+            "WHERE j.status = 'OPEN' AND " + SPATIAL_RADIUS_FILTER +
+            "AND (:category IS NULL OR LOWER(j.category) = LOWER(:category)) " +
+            "AND (:searchKey IS NULL OR " +
+            "LOWER(j.title) LIKE LOWER(CONCAT('%', :searchKey, '%')) OR " +
+            "LOWER(j.description) LIKE LOWER(CONCAT('%', :searchKey, '%')) OR " +
+            "LOWER(j.category) LIKE LOWER(CONCAT('%', :searchKey, '%'))) " +
+            "ORDER BY j.created_at DESC, j.id DESC",
+            countQuery = "SELECT COUNT(*) " + ACTIVE_JOBS_FROM +
+                    "WHERE j.status = 'OPEN' AND " + SPATIAL_RADIUS_FILTER +
+                    "AND (:category IS NULL OR LOWER(j.category) = LOWER(:category)) " +
+                    "AND (:searchKey IS NULL OR " +
+                    "LOWER(j.title) LIKE LOWER(CONCAT('%', :searchKey, '%')) OR " +
+                    "LOWER(j.description) LIKE LOWER(CONCAT('%', :searchKey, '%')) OR " +
+                    "LOWER(j.category) LIKE LOWER(CONCAT('%', :searchKey, '%')))",
             nativeQuery = true)
-    List<NearbyJobProjection> searchNearbyJobs(
+    Page<NearbyJobProjection> searchNearbyJobs(
             @Param("workerLat") BigDecimal workerLat,
             @Param("workerLng") BigDecimal workerLng,
             @Param("radius") Double radius,
             @Param("searchKey") String searchKey,
             @Param("category") String category,
-            @Param("limit") int limit,
-            @Param("offset") long offset
+            Pageable pageable
     );
-
-    @Query(value = "SELECT count(*) FROM ( " +
-            "SELECT j.id, (6371 * acos(cos(radians(:workerLat)) * cos(radians(j.latitude)) * " +
-            "cos(radians(j.longitude) - radians(:workerLng)) + " +
-            "sin(radians(:workerLat)) * sin(radians(j.latitude)))) AS distance " +
-            "FROM active_listings al " +
-            "JOIN jobs j ON al.job_id = j.id " +
-            "WHERE j.status = 'OPEN' " +
-            "AND (:category IS NULL OR j.category = :category) " +
-            "AND (:searchKey IS NULL OR LOWER(j.title) LIKE LOWER(CONCAT('%', :searchKey, '%')) OR LOWER(j.description) LIKE LOWER(CONCAT('%', :searchKey, '%'))) " +
-            "HAVING distance <= :radius) AS temp_count",
-            nativeQuery = true)
-    long countNearbyJobs(
-            @Param("workerLat") BigDecimal workerLat,
-            @Param("workerLng") BigDecimal workerLng,
-            @Param("radius") Double radius,
-            @Param("searchKey") String searchKey,
-            @Param("category") String category);
-
 }

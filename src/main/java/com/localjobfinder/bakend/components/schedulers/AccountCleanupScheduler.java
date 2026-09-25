@@ -12,7 +12,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 
 @Slf4j
@@ -60,6 +59,5 @@ public class AccountCleanupScheduler {
         fcmTokenRepository.deleteByUpdatedAtBefore(limit);
         log.info("Cron job executed: Cleaned up expired FCM tokens older than 90 days.");
     }
-
 
 }

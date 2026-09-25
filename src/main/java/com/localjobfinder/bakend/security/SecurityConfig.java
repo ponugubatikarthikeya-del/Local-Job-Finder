@@ -1,6 +1,5 @@
 package com.localjobfinder.bakend.security;
 
-import com.localjobfinder.bakend.exceptionPackage.CustomException;
 import com.localjobfinder.bakend.security.jwtTokenPackage.JwtAuthenticationFilter;
 import com.localjobfinder.bakend.security.jwtTokenPackage.JwtService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,7 +25,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws CustomException {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
         JwtAuthenticationFilter jwtAuthenticationFilter = new JwtAuthenticationFilter(jwtService);
 
@@ -39,12 +38,12 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests(auth -> auth
                         // Perfected: Permits EVERYTHING under the "user/auth/" RequestMapping prefix automatically
-                        .requestMatchers("/user/auth/**").permitAll()
-                        .requestMatchers("/user/profiles/**").permitAll()
-                        .requestMatchers("/user/job/**").permitAll()
-                        .requestMatchers("/user/job/applications/**").permitAll()
-                        .requestMatchers("/user/job/filter/**").permitAll()
-                        .requestMatchers("/user/notifications/**").permitAll()
+                        .requestMatchers("/user/**").permitAll()
+//                        .requestMatchers("/user/profiles/**").permitAll()
+//                        .requestMatchers("/user/job/**").permitAll()
+//                        .requestMatchers("/user/job/applications/**").permitAll()
+//                        .requestMatchers("/user/job/filter/**").permitAll()
+//                        .requestMatchers("/user/notifications/**").permitAll()
 
                         // Everything else → requires active JWT authentication validation tokens
                         .anyRequest().authenticated()

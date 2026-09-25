@@ -4,7 +4,8 @@ import com.localjobfinder.bakend.dbEntity.FcmTokenEntity;
 import com.localjobfinder.bakend.dbEntity.UserEntity;
 import com.localjobfinder.bakend.enums.ErrorMsg;
 import com.localjobfinder.bakend.enums.SuccessMsg;
-import com.localjobfinder.bakend.exceptionPackage.CustomException;
+import com.localjobfinder.bakend.exceptionPackage.custom_exceptions.InvalidException;
+import com.localjobfinder.bakend.exceptionPackage.custom_exceptions.ResourceNotFoundException;
 import com.localjobfinder.bakend.repository.FcmTokenRepository;
 import com.localjobfinder.bakend.repository.UserRepository;
 import com.localjobfinder.bakend.responsePackage.AuthResponse;
@@ -33,15 +34,15 @@ public class FcmTokenService implements FcmServiceInterface {
 
     @Override
     @Transactional
-    public AuthResponse updateFcmToken(Long userId, String fcmToken, String request) throws CustomException {
+    public AuthResponse updateFcmToken(Long userId, String fcmToken, String request) {
         // 1. Fail-fast validation
 
         if (userId == null) {
-            throw new CustomException(ErrorMsg.AUTH_008, 400);
+            throw new ResourceNotFoundException(ErrorMsg.AUTH_008.getMessage());
         }
 
         if (fcmToken == null || fcmToken.isBlank() || request == null) {
-            throw new CustomException(ErrorMsg.TOKEN_002, 400);
+            throw new InvalidException("fcm token is invalid");
         }
 
 //        💡 FIX: Purge old FCM rows for this user right before inserting the fresh one
@@ -49,7 +50,6 @@ public class FcmTokenService implements FcmServiceInterface {
 
         // 2. Safe delete: clear this specific token if it was previously tied to any user
         fcmTokenRepository.deleteByDeviceToken(fcmToken);
-
 
         // 3. FORCE HIBERNATE TO SYNC WITH DATABASE RIGHT NOW (Fixes Error 1062)
         fcmTokenRepository.flush();
@@ -64,6 +64,7 @@ public class FcmTokenService implements FcmServiceInterface {
         fcmTokenEntity.setUpdatedAt(Instant.now());
 
         fcmTokenRepository.save(fcmTokenEntity);
+
         log.info("Successfully linked FCM token to userId={}", userId);
 
 

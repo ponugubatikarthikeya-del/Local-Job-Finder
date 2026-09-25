@@ -1,24 +1,30 @@
 package com.localjobfinder.bakend.controllerPackage;
 
-import com.localjobfinder.bakend.enums.ErrorMsg;
-import com.localjobfinder.bakend.exceptionPackage.CustomException;
+import com.localjobfinder.bakend.dbEntity.JobsEntity;
+import com.localjobfinder.bakend.dtoPackage.JobDto;
+import com.localjobfinder.bakend.exceptionPackage.custom_exceptions.InvalidException;
+import com.localjobfinder.bakend.paging.JobFilterCriteria;
+import com.localjobfinder.bakend.paging.JobPagingResponse;
+import com.localjobfinder.bakend.paging.PagedResponse;
 import com.localjobfinder.bakend.responsePackage.AllJobsResponse;
-import com.localjobfinder.bakend.security.jwtTokenPackage.JwtSecurityService;
+import com.localjobfinder.bakend.security.jwtTokenPackage.JwtDataProviderService;
+import com.localjobfinder.bakend.serviceInterfacePackage.JobFilterServiceInterface;
 import com.localjobfinder.bakend.servicePackage.JobFilerService;
 import com.localjobfinder.bakend.utilsPackage.SecurityUtils;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 
@@ -32,84 +38,47 @@ public class JobFilterController {
         return SecurityUtils.sanitize(request.getRequestURI());
     }
 
-    private final JobFilerService jobFilterService;
-    private final JwtSecurityService jwtSecurityService;
+    private final JobFilterServiceInterface jobFilterService;
+    private final JwtDataProviderService jwtDataProviderService;
 
     @Autowired
-    public JobFilterController(JwtSecurityService jwtSecurityService, JobFilerService jobFilterService) {
-        this.jwtSecurityService = jwtSecurityService;
+    public JobFilterController(JwtDataProviderService jwtDataProviderService, JobFilterServiceInterface jobFilterService) {
+        this.jwtDataProviderService = jwtDataProviderService;
         this.jobFilterService = jobFilterService;
     }
 
-
     @GetMapping("getActiveJobs/nearby")
-    public ResponseEntity<AllJobsResponse> getActiveJobs(
-            @RequestParam("lat") BigDecimal lat,
-            @RequestParam("lng") BigDecimal lng,
-            @RequestParam(value = "radius", defaultValue = "20.0") Double radius,
-            @RequestParam(value = "page", defaultValue = "0") int page,
-            @RequestParam(value = "size", defaultValue = "20") int size,
-            HttpServletRequest httpServletRequest
-    ) throws CustomException {
+    public ResponseEntity<JobPagingResponse<PagedResponse<JobDto>>> getFilteredJobs(
+            @ModelAttribute @Valid JobFilterCriteria criteria,
+            HttpServletRequest httpServletRequest) {
 
-        log.info("getActiveJobs api called with lat={}, lng={}, radius={}", lat, lng, radius);
+        log.info("Getting filter jobs API called");
 
-        if (lat == null || lng == null) {
-            throw new CustomException(ErrorMsg.BUS_001, 400, "latitude and longitude are required");
-        }
+        Long userId = jwtDataProviderService.getCurrentUserId();
 
-        String path = getPath(httpServletRequest);
+        JobPagingResponse<PagedResponse<JobDto>> response = jobFilterService.filterJobs(
+                userId, criteria, getPath(httpServletRequest)
+        );
 
-        Long  userId = jwtSecurityService.getCurrentUserId();
-
-        // Instantiate page parameters safely
-        Pageable pageable = PageRequest.of(page, size);
-
-        AllJobsResponse response = jobFilterService.getActiveJobs(lat, lng, radius, path,userId,pageable);
-
-        return ResponseEntity.status(HttpStatusCode.valueOf(response.getStatus())).body(response);
-
+        return ResponseEntity.status(HttpStatus.valueOf(response.getStatus())).body(response);
     }
 
+
     @GetMapping("getMyJobs")
-    public ResponseEntity<AllJobsResponse> getMyJobs(
+    public ResponseEntity<JobPagingResponse<PagedResponse<JobDto>>> getMyJobs(
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "20") int size,
             HttpServletRequest httpServletRequest
-    ) throws CustomException {
+    ) {
 
         log.info("getMyJobs api called");
 
-        Long userId = jwtSecurityService.getCurrentUserId();
+        Long userId = jwtDataProviderService.getCurrentUserId();
 
         log.debug("authenticated userId={}", userId);
 
-        Pageable pageable = PageRequest.of(page, size);
-
-        AllJobsResponse userResponse = jobFilterService.getMyJobs(getPath(httpServletRequest), userId,pageable);
-        return ResponseEntity.status(HttpStatusCode.valueOf(userResponse.getStatus())).body(userResponse);
-    }
-
-
-    @GetMapping("search")
-    public ResponseEntity<AllJobsResponse> searchJobs(
-            @RequestParam("lat") BigDecimal lat,
-            @RequestParam("lng") BigDecimal lng,
-            @RequestParam(value = "radius", defaultValue = "100.0") Double radius,
-            @RequestParam(value = "search", required = false) String search,
-            @RequestParam(value = "category", required = false) String category,
-            @org.springframework.data.web.PageableDefault(size = 20) Pageable pageable, // FIXED: Removed sort string mapping here
-            HttpServletRequest httpServletRequest
-    ) throws CustomException {
-
-        log.info("Job Search initiated: query='{}', category='{}', radius={}km, sort={}",
-                search, category, radius, pageable.getSort());
-
-        Long userId = jwtSecurityService.getCurrentUserId();
-
-        AllJobsResponse response = jobFilterService.searchJobs(
-                lat, lng, radius, search, category, getPath(httpServletRequest), userId, pageable
-        );
+        JobPagingResponse<PagedResponse<JobDto>> response =
+                jobFilterService.getMyJobs(userId,getPath(httpServletRequest),page,size);
 
         return ResponseEntity.status(HttpStatusCode.valueOf(response.getStatus())).body(response);
     }

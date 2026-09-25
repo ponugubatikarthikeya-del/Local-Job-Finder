@@ -2,10 +2,10 @@ package com.localjobfinder.bakend.controllerPackage;
 
 import com.localjobfinder.bakend.apiDataPackage.AddressTakeRequest;
 import com.localjobfinder.bakend.apiDataPackage.EditProfileRequest;
-import com.localjobfinder.bakend.exceptionPackage.CustomException;
 import com.localjobfinder.bakend.responsePackage.MyProfileResponse;
 import com.localjobfinder.bakend.responsePackage.ProfileResponse;
-import com.localjobfinder.bakend.security.jwtTokenPackage.JwtSecurityService;
+import com.localjobfinder.bakend.security.jwtTokenPackage.JwtDataProviderService;
+import com.localjobfinder.bakend.serviceInterfacePackage.ProfileServiceInterface;
 import com.localjobfinder.bakend.servicePackage.ProfileService;
 import com.localjobfinder.bakend.utilsPackage.SecurityUtils;
 import jakarta.servlet.http.HttpServletRequest;
@@ -23,25 +23,24 @@ public class ProfileController {
 
     private static final Logger log = LoggerFactory.getLogger(ProfileController.class);
 
-
     private String getPath(HttpServletRequest request) {
         return SecurityUtils.sanitize(request.getRequestURI());
     }
 
-    private ProfileService profileService;
-    private JwtSecurityService jwtSecurityService;
+    private ProfileServiceInterface profileService;
+    private JwtDataProviderService jwtDataProviderService;
 
     @Autowired
-    public void setProfileService(ProfileService profileService, JwtSecurityService jwtSecurityService) {
+    public void setProfileService(ProfileServiceInterface profileService, JwtDataProviderService jwtDataProviderService) {
         this.profileService = profileService;
-        this.jwtSecurityService = jwtSecurityService;
+        this.jwtDataProviderService = jwtDataProviderService;
     }
 
 
     @GetMapping("me")
-    public ResponseEntity<MyProfileResponse> getMyProfile(HttpServletRequest httpServletRequest) throws CustomException {
+    public ResponseEntity<MyProfileResponse> getMyProfile(HttpServletRequest httpServletRequest)  {
 
-        Long userId = jwtSecurityService.getCurrentUserId();
+        Long userId = jwtDataProviderService.getCurrentUserId();
 
         log.info("getUserDetails api called for id={}",userId);
 
@@ -52,7 +51,7 @@ public class ProfileController {
 
     @GetMapping("public-profile/{jobId}")
     public ResponseEntity<MyProfileResponse> getPublicProfile(
-            @PathVariable Long jobId, HttpServletRequest httpServletRequest) throws CustomException {
+            @PathVariable Long jobId, HttpServletRequest httpServletRequest) {
 
         log.info("public profile api called for id={}",jobId);
 
@@ -64,9 +63,9 @@ public class ProfileController {
     @PutMapping("update")
     public ResponseEntity<ProfileResponse> updateProfile(
             @Valid @RequestBody EditProfileRequest editProfileRequest,HttpServletRequest httpServletRequest
-    ) throws CustomException {
+    ) {
 
-        Long userId = jwtSecurityService.getCurrentUserId();
+        Long userId = jwtDataProviderService.getCurrentUserId();
 
         log.info("updateProfile api called for email={}",userId);
 
@@ -77,9 +76,8 @@ public class ProfileController {
 
     @PatchMapping("update-address")
     public ResponseEntity<ProfileResponse> updateUserAddress(
-            @Valid @RequestBody AddressTakeRequest addressTakeRequest, HttpServletRequest httpServletRequest
-    ) throws CustomException {
-        Long userId = jwtSecurityService.getCurrentUserId();
+            @Valid @RequestBody AddressTakeRequest addressTakeRequest, HttpServletRequest httpServletRequest ) {
+        Long userId = jwtDataProviderService.getCurrentUserId();
         log.info("updateUserAddress api called for email={}",userId);
 
         ProfileResponse response = profileService.updateUserAddress(userId,addressTakeRequest,getPath(httpServletRequest));

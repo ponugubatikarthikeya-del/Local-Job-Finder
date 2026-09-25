@@ -6,6 +6,7 @@ import com.localjobfinder.bakend.OauthPackage.AuthLoginEnum;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -55,8 +56,9 @@ public class UserEntity {
 //    @Column(name = "fcm_token", length = 512) // FCM tokens can be long strings
 //    private String fcmToken;
 
-    @Column(name = "created_at", insertable = false, updatable = false)
-    private Instant createdAt = Instant.now();
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false)
+    private Instant createdAt;
 
     @Column(name = "updated_at", insertable = false)
     private Instant updatedAt;
@@ -66,10 +68,7 @@ public class UserEntity {
     @JsonManagedReference
     private List<TokenEntity> refreshTokens = new ArrayList<>();
 
-//    @Enumerated(EnumType.STRING)
-//    @Column(name = "role", nullable = false)
-//    private UserRoleEnum role = UserRoleEnum.WORKER;
-//
+
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference
     private ProfilesEntity profile;

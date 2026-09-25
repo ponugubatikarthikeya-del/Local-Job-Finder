@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+
+# jdbc connect java files to mysql database
+
 import mysql.connector
 from mysql.connector import Error
 
