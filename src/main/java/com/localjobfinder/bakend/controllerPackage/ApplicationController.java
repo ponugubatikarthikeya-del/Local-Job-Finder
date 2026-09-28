@@ -1,21 +1,19 @@
 package com.localjobfinder.bakend.controllerPackage;
 
 import com.localjobfinder.bakend.dtoPackage.ApplicantDto;
-import com.localjobfinder.bakend.dtoPackage.UserDto;
+
 import com.localjobfinder.bakend.paging.JobPagingResponse;
 import com.localjobfinder.bakend.paging.PagedResponse;
 import com.localjobfinder.bakend.responsePackage.JobResponse;
-import com.localjobfinder.bakend.responsePackage.ViewApplicantsResponse;
+
 import com.localjobfinder.bakend.security.jwtTokenPackage.JwtDataProviderService;
 import com.localjobfinder.bakend.serviceInterfacePackage.ApplicationServiceInterface;
-import com.localjobfinder.bakend.servicePackage.ApplicationService;
+
 import com.localjobfinder.bakend.utilsPackage.SecurityUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -60,7 +58,7 @@ public class ApplicationController {
             @PathVariable Long jobId,
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "20") int size,
-            HttpServletRequest httpServletRequest ) {
+            HttpServletRequest httpServletRequest) {
 
         log.info("viewApplicants api called for jobId={}", jobId);
 

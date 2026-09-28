@@ -35,6 +35,24 @@
     </properties>
     <dependencies>
 
+        <!-- Required for Lettuce Connection Pooling -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-pool2</artifactId>
+        </dependency>
+
+        <!-- Spring Data Redis starter (includes Lettuce client) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+
+        <!-- For JSON serialization -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+        </dependency>
+
         <!-- shedlock dependencies -->
 
         <dependency>
@@ -180,11 +198,6 @@
             <artifactId>spring-boot-starter-mail</artifactId>
         </dependency>
 
-
-        <dependency>
-            <groupId>com.fasterxml.jackson.datatype</groupId>
-            <artifactId>jackson-datatype-jsr310</artifactId>
-        </dependency>
 
         <!-- MapStruct Core -->
         <dependency>

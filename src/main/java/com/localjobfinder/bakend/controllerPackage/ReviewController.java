@@ -4,7 +4,6 @@ import com.localjobfinder.bakend.apiDataPackage.SubmitReviewRequest;
 import com.localjobfinder.bakend.responsePackage.JobResponse;
 import com.localjobfinder.bakend.security.jwtTokenPackage.JwtDataProviderService;
 import com.localjobfinder.bakend.serviceInterfacePackage.ReviewServiceInterface;
-import com.localjobfinder.bakend.servicePackage.ReviewService;
 import com.localjobfinder.bakend.utilsPackage.SecurityUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;

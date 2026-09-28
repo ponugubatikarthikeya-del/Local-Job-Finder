@@ -5,25 +5,21 @@ import lombok.Getter;
 import java.time.Instant;
 
 @Getter
-public class RefreshTokenResponse {
+public class UserProfileResponse<T> {
 
     private final Instant timestamp;
     private final int status;
     private final String errorCode;
     private final String message;
     private final String path;
-    private final String accessToken;
-    private final String refreshToken;
+    private final T data;
 
-    public RefreshTokenResponse(int status, String errorCode,
-                         String message, String path, String accessToken, String refreshToken) {
+    public UserProfileResponse(int status, String errorCode, String message, String path, T data) {
         this.timestamp = Instant.now();
         this.status = status;
         this.errorCode = errorCode;
         this.message = message;
         this.path = path;
-        this.accessToken = accessToken;
-        this.refreshToken = refreshToken;
+        this.data = data;
     }
-
 }

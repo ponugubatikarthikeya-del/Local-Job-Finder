@@ -1,11 +1,12 @@
 package com.localjobfinder.bakend.controllerPackage;
 
 import com.localjobfinder.bakend.apiDataPackage.PostJobRequest;
+import com.localjobfinder.bakend.dtoPackage.JobDto;
 import com.localjobfinder.bakend.responsePackage.JobResponse;
-import com.localjobfinder.bakend.responsePackage.UserResponse;
+import com.localjobfinder.bakend.responsePackage.JobDataResponse;
 import com.localjobfinder.bakend.security.jwtTokenPackage.JwtDataProviderService;
 import com.localjobfinder.bakend.serviceInterfacePackage.JobServiceInterface;
-import com.localjobfinder.bakend.servicePackage.JobService;
+
 import com.localjobfinder.bakend.utilsPackage.SecurityUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -36,7 +37,7 @@ public class JobsController {
     }
 
     @PostMapping("createJob")
-    public ResponseEntity<UserResponse> postJob(
+    public ResponseEntity<JobResponse> postJob(
            @Valid @RequestBody PostJobRequest postJobRequest,
            HttpServletRequest httpServletRequest) {
 
@@ -46,7 +47,7 @@ public class JobsController {
 
        log.debug("authenticated userId={}", userId);
 
-       UserResponse response = jobService.postJob(postJobRequest, getPath(httpServletRequest), userId);
+        JobResponse response = jobService.postJob(postJobRequest, getPath(httpServletRequest), userId);
 
        return ResponseEntity.status(HttpStatusCode.valueOf(response.getStatus())).body(response);
     }

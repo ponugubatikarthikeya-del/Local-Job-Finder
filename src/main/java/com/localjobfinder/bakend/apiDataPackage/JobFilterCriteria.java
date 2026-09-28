@@ -1,4 +1,4 @@
-package com.localjobfinder.bakend.paging;
+package com.localjobfinder.bakend.apiDataPackage;
 
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -14,10 +14,6 @@ public class JobFilterCriteria {
     private String category;
 
     private Double salary;
-//
-//    private String location;
-//
-//    private String status;
 
     private BigDecimal lat;
     private BigDecimal lng;

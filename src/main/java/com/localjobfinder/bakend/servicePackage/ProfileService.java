@@ -14,7 +14,7 @@ import com.localjobfinder.bakend.exceptionPackage.custom_exceptions.ResourceNotF
 import com.localjobfinder.bakend.exceptionPackage.custom_exceptions.UnauthorizedException;
 import com.localjobfinder.bakend.repository.JobsRepository;
 import com.localjobfinder.bakend.repository.UserRepository;
-import com.localjobfinder.bakend.responsePackage.MyProfileResponse;
+import com.localjobfinder.bakend.responsePackage.UserProfileResponse;
 import com.localjobfinder.bakend.responsePackage.ProfileResponse;
 import com.localjobfinder.bakend.serviceInterfacePackage.ProfileServiceInterface;
 
@@ -23,6 +23,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,6 +41,9 @@ public class ProfileService implements ProfileServiceInterface {
     private MapStructMapper mapStructMapper;
     private JobsRepository jobsRepository;
 
+    private static final String MY_PROFILE_CACHE = "myProfileCache";
+    private static final String PUBLIC_PROFILE_CACHE = "publicProfileCache";
+
 
     @Autowired
     public void setUserRepository(UserRepository userRepository, MapStructMapper mapStructMapper, JobsRepository jobsRepository)
@@ -51,7 +57,11 @@ public class ProfileService implements ProfileServiceInterface {
 
     @Override
     @Transactional(readOnly = true)
-    public MyProfileResponse getMyProfile(Long userId, String path) {
+    @Cacheable(
+            value = MY_PROFILE_CACHE,
+            key = "#userId"
+    )
+    public UserProfileResponse<UserDto> getMyProfile(Long userId, String path) {
 
         if(userId == null){
             throw new ResourceNotFoundException(ErrorMsg.AUTH_008.getMessage());
@@ -74,20 +84,7 @@ public class ProfileService implements ProfileServiceInterface {
 
         UserDto userDto = mapStructMapper.toUserDtoByUserEntityAndProfileEntity(user, profile);
 
-//        userDto.setId(user.getId());
-//        userDto.setUsername(user.getUsername());
-//        userDto.setEmail(user.getEmail());
-//        userDto.setPhone(user.getPhone());
-//        userDto.setCreatedAt(user.getCreatedAt());
-//        userDto.setHeadline(profilesEntity.getHeadline());
-//        userDto.setSkills(profilesEntity.getSkills());
-//        userDto.setDateOfBirth(profilesEntity.getDateOfBirth());
-//        userDto.setCityName(profilesEntity.getCityName());
-//        userDto.setRating(profilesEntity.getRating());
-//        userDto.setTotalJobsCompleted(profilesEntity.getTotalJobsCompleted());
-//        userDto.setUserDescription(profilesEntity.getUserDescription());
-
-        return new MyProfileResponse(
+        return new UserProfileResponse<>(
                 200,
                 SuccessMsg.USER_200.name(),
                 SuccessMsg.USER_200.getMessage(),
@@ -99,7 +96,11 @@ public class ProfileService implements ProfileServiceInterface {
 
     @Override
     @Transactional(readOnly = true)
-    public MyProfileResponse getPublicProfile(Long jobId, String path) {
+    @Cacheable(
+            value = PUBLIC_PROFILE_CACHE,
+            key = "#jobId"
+    )
+    public UserProfileResponse<PublicProfileDto> getPublicProfile(Long jobId, String path) {
 
         if(jobId == null){
             throw new InvalidException(ErrorMsg.AUTH_004.getMessage());
@@ -131,16 +132,7 @@ public class ProfileService implements ProfileServiceInterface {
         PublicProfileDto profileDto = mapStructMapper.
                 toPPDtoByUserEntityAndPublicProfileEntity(user, profilesEntity);
 
-//        profileDto.setId(profilesEntity.getId());
-//        profileDto.setUsername(userEntity.get().getUsername());
-//        profileDto.setHeadline(profilesEntity.getHeadline());
-//        profileDto.setSkills(profilesEntity.getSkills());
-//        profileDto.setCityName(profilesEntity.getCityName());
-//        profileDto.setRating(profilesEntity.getRating());
-//        profileDto.setTotalJobsCompleted(profilesEntity.getTotalJobsCompleted());
-//        profileDto.setUserDescription(profilesEntity.getUserDescription());
-
-        return new MyProfileResponse(
+        return new UserProfileResponse<>(
                 200,
                 SuccessMsg.USER_200.name(),
                 SuccessMsg.USER_200.getMessage(),
@@ -151,6 +143,10 @@ public class ProfileService implements ProfileServiceInterface {
 
     @Override
     @Transactional
+    @CachePut(
+            value = MY_PROFILE_CACHE,
+            key = "#userId"
+    )
     public ProfileResponse updateProfile(Long userId, String path, EditProfileRequest request) {
 
         if (userId == null) {
@@ -206,6 +202,10 @@ public class ProfileService implements ProfileServiceInterface {
 
     @Override
     @Transactional
+    @CachePut(
+            value = MY_PROFILE_CACHE,
+            key = "#id"
+    )
     public ProfileResponse updateUserAddress(Long id, AddressTakeRequest addressTakeRequest, String request)  {
 
         if(id == null){

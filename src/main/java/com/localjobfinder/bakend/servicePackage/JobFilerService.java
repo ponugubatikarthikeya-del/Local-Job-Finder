@@ -6,7 +6,7 @@ import com.localjobfinder.bakend.enums.ErrorMsg;
 import com.localjobfinder.bakend.enums.SuccessMsg;
 import com.localjobfinder.bakend.exceptionPackage.custom_exceptions.InvalidException;
 import com.localjobfinder.bakend.exceptionPackage.custom_exceptions.ResourceNotFoundException;
-import com.localjobfinder.bakend.paging.JobFilterCriteria;
+import com.localjobfinder.bakend.apiDataPackage.JobFilterCriteria;
 import com.localjobfinder.bakend.paging.JobPagingResponse;
 import com.localjobfinder.bakend.paging.PagedResponse;
 
@@ -14,10 +14,13 @@ import com.localjobfinder.bakend.paging.SpecificationBuilder;
 import com.localjobfinder.bakend.repository.*;
 import com.localjobfinder.bakend.serviceInterfacePackage.JobFilterServiceInterface;
 import com.localjobfinder.bakend.utilsPackage.MapStructMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -38,6 +41,10 @@ public class JobFilerService implements JobFilterServiceInterface {
     private final MapStructMapper mapStructMapper;
     private final GeometryFactory geometryFactory;
 
+    private static final String JOBS_CACHE = "jobs";
+    private static final String MY_JOB_CACHE = "myJob";
+    private static final Logger log = LoggerFactory.getLogger(JobFilerService.class);
+
     @Autowired
     public JobFilerService(JobsRepository jobsRepository, UserRepository userRepository,
                            MapStructMapper mapStructMapper, GeometryFactory geometryFactory) {
@@ -49,6 +56,11 @@ public class JobFilerService implements JobFilterServiceInterface {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(
+            value = JOBS_CACHE,
+            keyGenerator = "searchCacheKeyGenerator",
+            sync = true
+    )
     public JobPagingResponse<PagedResponse<JobDto>> filterJobs(Long userId,
                                                                JobFilterCriteria criteria, String path) {
 
@@ -101,6 +113,8 @@ public class JobFilerService implements JobFilterServiceInterface {
         );
 
         Page<JobsEntity> jobsPage = jobsRepository.findAll(spec, pageable);
+        log.debug("Loaded job search page from database: userId={}, page={}, size={}, resultCount={}",
+                userId, page, size, jobsPage.getNumberOfElements());
 
         List<JobDto> dtoList = jobsPage.getContent().stream().map(job -> {
             JobDto dto = mapStructMapper.toJobDtoByJobEntity(job);
@@ -130,6 +144,10 @@ public class JobFilerService implements JobFilterServiceInterface {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(
+            value = MY_JOB_CACHE,
+            key = "{#userId, #page, #size, #path}"
+    )
     public JobPagingResponse<PagedResponse<JobDto>> getMyJobs(Long userId, String path, int page, int size) {
 
         if (userId == null || userId <= 0) {
@@ -144,6 +162,8 @@ public class JobFilerService implements JobFilterServiceInterface {
                 Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id")));
 
         Page<JobsEntity> jobsPage = jobsRepository.findByUserId(userId,pageable);
+        log.debug("Loaded user's job page from database: userId={}, page={}, size={}, resultCount={}",
+                userId, page, size, jobsPage.getNumberOfElements());
 
         List<JobDto> dtoList = jobsPage.getContent().stream().map(job -> {
             JobDto dto = mapStructMapper.toJobDtoByJobEntity(job);

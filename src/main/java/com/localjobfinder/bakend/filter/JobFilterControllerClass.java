@@ -2,7 +2,7 @@ package com.localjobfinder.bakend.filter;
 
 import com.localjobfinder.bakend.dtoPackage.JobDto;
 import com.localjobfinder.bakend.filter.Specification.JobFiler;
-import com.localjobfinder.bakend.paging.JobFilterCriteria;
+import com.localjobfinder.bakend.apiDataPackage.JobFilterCriteria;
 import com.localjobfinder.bakend.paging.JobPagingResponse;
 import com.localjobfinder.bakend.paging.PagedResponse;
 import com.localjobfinder.bakend.security.jwtTokenPackage.JwtDataProviderService;
@@ -12,8 +12,6 @@ import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.math.BigDecimal;
 
 @RestController
 @RequestMapping("user/api/jobs")

@@ -29,7 +29,7 @@ public interface MapStructMapper {
 
     JobsEntity toJobsEntityByPostJobRequest(PostJobRequest postJobRequest);
 
-    @Mapping(source = "user.id",target = "id")
+    @Mapping(source = "user.id",target = "userId")
     ApplicantDto toApplicantDtoByUserEntityAndProfileEntity(UserEntity user, ProfilesEntity profile);
 
     default Instant map(LocalDateTime value) {

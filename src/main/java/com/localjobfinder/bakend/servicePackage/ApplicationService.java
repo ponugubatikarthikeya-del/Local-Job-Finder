@@ -4,20 +4,21 @@ import com.localjobfinder.bakend.dbEntity.ApplicationJobsEntity;
 import com.localjobfinder.bakend.dbEntity.JobsEntity;
 import com.localjobfinder.bakend.dbEntity.UserEntity;
 import com.localjobfinder.bakend.dtoPackage.ApplicantDto;
-import com.localjobfinder.bakend.dtoPackage.JobDto;
-import com.localjobfinder.bakend.dtoPackage.UserDto;
 import com.localjobfinder.bakend.enums.*;
 import com.localjobfinder.bakend.exceptionPackage.custom_exceptions.*;
 import com.localjobfinder.bakend.paging.JobPagingResponse;
 import com.localjobfinder.bakend.paging.PagedResponse;
 import com.localjobfinder.bakend.repository.*;
+import com.localjobfinder.bakend.redis.RedisCacheInvalidator;
 import com.localjobfinder.bakend.responsePackage.JobResponse;
-import com.localjobfinder.bakend.responsePackage.ViewApplicantsResponse;
+
 import com.localjobfinder.bakend.serviceInterfacePackage.ApplicationServiceInterface;
 import com.localjobfinder.bakend.utilsPackage.MapStructMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheConfig;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -38,18 +39,23 @@ public class ApplicationService implements ApplicationServiceInterface {
     private final ApplicationJobsRepository applicationJobsRepository;
     private final MapStructMapper mapStructMapper;
     private final ApplicationEventPublisher eventPublisher;
+    private final RedisCacheInvalidator cacheInvalidator;
+
+    private static final String Applicants_CACHE = "applicants:v2";
 
     private static final Logger log = LoggerFactory.getLogger(ApplicationService.class);
 
     @Autowired
     public ApplicationService(JobsRepository jobsRepository, UserRepository userRepository,
                       ApplicationJobsRepository applicationJobsRepository,MapStructMapper mapStructMapper,
-                              ApplicationEventPublisher eventPublisher) {
+                              ApplicationEventPublisher eventPublisher,
+                              RedisCacheInvalidator cacheInvalidator) {
         this.jobsRepository = jobsRepository;
         this.userRepository = userRepository;
         this.applicationJobsRepository = applicationJobsRepository;
         this.mapStructMapper = mapStructMapper;
         this.eventPublisher = eventPublisher;
+        this.cacheInvalidator = cacheInvalidator;
     }
 
     @Override
@@ -89,6 +95,8 @@ public class ApplicationService implements ApplicationServiceInterface {
         application.setJob(job);
         application.setStatus(ApplicationStatusEnum.APPLIED);
         applicationJobsRepository.save(application);
+        cacheInvalidator.evictAfterCommit(Applicants_CACHE);
+        log.info("Job application created: userId={}, jobId={}", userId, jobId);
 
         // Notify Job Owner about the new application asynchronously
 
@@ -122,6 +130,11 @@ public class ApplicationService implements ApplicationServiceInterface {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(
+            value = Applicants_CACHE,
+            key = "{#ownerId, #jobId, #page, #size, #path}",
+            sync = true
+    )
     public JobPagingResponse<PagedResponse<ApplicantDto>> viewApplicants(String path, Long ownerId, Long jobId,int page,int size) {
 
         if (ownerId == null || ownerId <= 0) {
@@ -140,9 +153,17 @@ public class ApplicationService implements ApplicationServiceInterface {
         Page<ApplicationJobsEntity> applicationPage = applicationJobsRepository.findByJobId(jobId, pageable);
 
         List<ApplicantDto> applicants = applicationPage.getContent().stream().map(application -> {
-            return mapStructMapper.
+
+            ApplicantDto applicantDto =  mapStructMapper.
                    toApplicantDtoByUserEntityAndProfileEntity(application.getUser(),application.getUser().getProfile());
+            applicantDto.setApplicationId(application.getId());
+            applicantDto.setAppliedAt(application.getCreatedAt());
+
+            return applicantDto;
         }).collect(Collectors.toList());
+
+        log.debug("Loaded applicant page from database: ownerId={}, jobId={}, page={}, size={}, count={}",
+                ownerId, jobId, page, size, applicants.size());
 
         PagedResponse<ApplicantDto> pagedDataResponse = new PagedResponse<>(
                 applicants,
@@ -204,6 +225,8 @@ public class ApplicationService implements ApplicationServiceInterface {
         // 3. Shift job state tracking node
         job.setStatus(JobStatusEnum.IN_PROGRESS);
         jobsRepository.save(job);
+        cacheInvalidator.evictAfterCommit(Applicants_CACHE, "jobs", "myJob");
+        log.info("Applicant accepted: ownerId={}, jobId={}, applicantId={}", ownerId, jobId, applicantId);
 
 //        // 4. Fire Async push notification payload delivery via FCM integration module
 //        try {
@@ -263,6 +286,8 @@ public class ApplicationService implements ApplicationServiceInterface {
         application.setStatus(ApplicationStatusEnum.REJECTED);
 
         applicationJobsRepository.save(application);
+        cacheInvalidator.evictAfterCommit(Applicants_CACHE, "jobs", "myJob");
+        log.info("Applicant rejected: ownerId={}, jobId={}, applicantId={}", ownerId, jobId, applicantId);
 
         return new JobResponse(200, SuccessMsg.APP_202.name(), SuccessMsg.APP_202.getMessage(), path);
     }

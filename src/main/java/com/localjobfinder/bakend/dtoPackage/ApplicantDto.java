@@ -2,12 +2,15 @@ package com.localjobfinder.bakend.dtoPackage;
 
 import lombok.Data;
 
+import java.time.Instant;
+
 @Data
 public class ApplicantDto {
 
-    private Long id;
+    private Long applicationId;
+    private Long userId;
     private String username;
-    private String email;
-    private String city;
+    private String headline;
+    private Instant appliedAt;
 
 }

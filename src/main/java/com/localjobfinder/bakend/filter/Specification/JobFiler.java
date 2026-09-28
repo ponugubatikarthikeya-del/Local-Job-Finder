@@ -8,7 +8,7 @@ import com.localjobfinder.bakend.enums.ErrorMsg;
 import com.localjobfinder.bakend.enums.SuccessMsg;
 import com.localjobfinder.bakend.exceptionPackage.custom_exceptions.InvalidException;
 import com.localjobfinder.bakend.exceptionPackage.custom_exceptions.ResourceNotFoundException;
-import com.localjobfinder.bakend.paging.JobFilterCriteria;
+import com.localjobfinder.bakend.apiDataPackage.JobFilterCriteria;
 import com.localjobfinder.bakend.paging.JobPagingResponse;
 import com.localjobfinder.bakend.paging.PagedResponse;
 import com.localjobfinder.bakend.paging.SpecificationBuilder;
@@ -28,7 +28,6 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 

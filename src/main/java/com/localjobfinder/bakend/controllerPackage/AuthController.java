@@ -7,7 +7,6 @@ import com.localjobfinder.bakend.exceptionPackage.custom_exceptions.InvalidExcep
 import com.localjobfinder.bakend.responsePackage.*;
 import com.localjobfinder.bakend.security.jwtTokenPackage.JwtDataProviderService;
 import com.localjobfinder.bakend.serviceInterfacePackage.AuthServiceInterface;
-import com.localjobfinder.bakend.servicePackage.AuthService;
 import com.localjobfinder.bakend.utilsPackage.SecurityUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -19,6 +18,8 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("user/auth/")
@@ -55,7 +56,7 @@ public class AuthController {
     }
 
     @PostMapping("signupOtp-verification")
-    public ResponseEntity<LoginResponse> signupOtpVerification(
+    public ResponseEntity<LoginResponse<Map<String,String>>> signupOtpVerification(
             @Valid @RequestBody SignupOtpValidationRequest signupOtpValidationRequest,
             HttpServletRequest httpServletRequest
     ) {
@@ -63,7 +64,7 @@ public class AuthController {
 
         String deviceId = httpServletRequest.getHeader("X-Device-Id");
 
-        LoginResponse response = authService.signupOtpVerification(signupOtpValidationRequest,getPath(httpServletRequest),deviceId);
+        LoginResponse<Map<String,String>> response = authService.signupOtpVerification(signupOtpValidationRequest,getPath(httpServletRequest),deviceId);
         return ResponseEntity.status(HttpStatusCode.valueOf(response.getStatus())).body(response);
 
     }
@@ -84,14 +85,14 @@ public class AuthController {
 
     //login api
     @PostMapping("login")
-    public ResponseEntity<LoginResponse> login(
+    public ResponseEntity<LoginResponse<Map<String,String>>> login(
             @Valid @RequestBody LoginRequest loginRequest, HttpServletRequest httpServletRequest) throws Exception {
 
         log.info("login api called for email={}", loginRequest.getEmail());
 
         String deviceId = httpServletRequest.getHeader("X-Device-Id");
 
-        LoginResponse response = authService.login(loginRequest, getPath(httpServletRequest),deviceId);
+        LoginResponse<Map<String,String>> response = authService.login(loginRequest, getPath(httpServletRequest),deviceId);
 
         return ResponseEntity.status(HttpStatusCode.valueOf(response.getStatus())).body(response);
 
@@ -100,7 +101,7 @@ public class AuthController {
     // refresh token generate api
 
     @PostMapping("refresh/token")
-    public ResponseEntity<RefreshTokenResponse> refreshToken(
+    public ResponseEntity<LoginResponse<Map<String,String>>> refreshToken(
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authHeader,
             HttpServletRequest httpServletRequest) {
 
@@ -112,7 +113,7 @@ public class AuthController {
 
         String refreshToken = authHeader.substring(7);
 
-        RefreshTokenResponse response = authService.newAccessToken(refreshToken, getPath(httpServletRequest));
+        LoginResponse<Map<String,String>> response = authService.newAccessToken(refreshToken, getPath(httpServletRequest));
 
         return ResponseEntity.status(HttpStatusCode.valueOf(response.getStatus())).body(response);
     }
@@ -154,7 +155,7 @@ public class AuthController {
     }
 
     @PostMapping("social-login")
-    public ResponseEntity<LoginResponse> socialLogin(
+    public ResponseEntity<LoginResponse<Map<String,String>>> socialLogin(
             @Valid @RequestBody OAuthLoginRequest oAuthLoginRequest,
             HttpServletRequest httpServletRequest) {
 
@@ -162,7 +163,7 @@ public class AuthController {
 
         String deviceId = httpServletRequest.getHeader("X-Device-Id");
 
-        LoginResponse response = authService.socialLogin(oAuthLoginRequest, getPath(httpServletRequest),deviceId);
+        LoginResponse<Map<String,String>> response = authService.socialLogin(oAuthLoginRequest, getPath(httpServletRequest),deviceId);
         return ResponseEntity.status(HttpStatusCode.valueOf(response.getStatus())).body(response);
     }
 
