@@ -6,6 +6,7 @@ import java.time.Instant;
 
 @Getter
 public class JobResponse {
+
     private final Instant timestamp;
     private final int status;
     private final String errorCode;

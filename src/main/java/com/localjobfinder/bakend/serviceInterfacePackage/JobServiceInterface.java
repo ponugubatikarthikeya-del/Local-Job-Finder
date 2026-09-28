@@ -1,12 +1,13 @@
 package com.localjobfinder.bakend.serviceInterfacePackage;
 
 import com.localjobfinder.bakend.apiDataPackage.PostJobRequest;
+import com.localjobfinder.bakend.dtoPackage.JobDto;
 import com.localjobfinder.bakend.responsePackage.*;
 
 public interface JobServiceInterface {
 
-    public UserResponse postJob(PostJobRequest postJobRequest, String request,
-                                Long userId) ;
+    public JobResponse postJob(PostJobRequest postJobRequest, String request,
+                                           Long userId) ;
 
     public JobResponse deleteJob(Long userId, Long jobId, String path) ;
 

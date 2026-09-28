@@ -6,6 +6,7 @@ import java.time.Instant;
 
 @Getter
 public class ResetKeyOtpResponse {
+
     // getters
     private final Instant timestamp;
     private final int status;
@@ -23,4 +24,5 @@ public class ResetKeyOtpResponse {
         this.path = path;
         this.resetKey = resetKey;
     }
+
 }

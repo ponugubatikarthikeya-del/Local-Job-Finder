@@ -10,8 +10,9 @@ import com.localjobfinder.bakend.exceptionPackage.custom_exceptions.Unauthorized
 import com.localjobfinder.bakend.exceptionPackage.custom_exceptions.InvalidException;
 import com.localjobfinder.bakend.exceptionPackage.custom_exceptions.ResourceNotFoundException;
 import com.localjobfinder.bakend.repository.*;
+import com.localjobfinder.bakend.redis.RedisCacheInvalidator;
 import com.localjobfinder.bakend.responsePackage.JobResponse;
-import com.localjobfinder.bakend.responsePackage.UserResponse;
+import com.localjobfinder.bakend.responsePackage.JobDataResponse;
 import com.localjobfinder.bakend.serviceInterfacePackage.JobServiceInterface;
 import com.localjobfinder.bakend.utilsPackage.MapStructMapper;
 import com.localjobfinder.bakend.components.GeometryUtils;
@@ -33,24 +34,26 @@ public class JobService implements JobServiceInterface {
     private final GeometryUtils geometryUtils;
 
     private final ApplicationJobsRepository applicationJobsRepository;
+    private final RedisCacheInvalidator cacheInvalidator;
 
     private static final Logger log = LoggerFactory.getLogger(JobService.class);
 
     @Autowired
     public JobService(JobsRepository jobsRepository, UserRepository userRepository,ActiveJobsListRepository activeJobsListRepository,
                       ApplicationJobsRepository applicationJobsRepository,MapStructMapper mapStructMapper,
-                      GeometryUtils geometryUtils ){
+                      GeometryUtils geometryUtils, RedisCacheInvalidator cacheInvalidator ){
         this.jobsRepository = jobsRepository;
         this.userRepository = userRepository;
         this.activeJobsListRepository = activeJobsListRepository;
         this.mapStructMapper = mapStructMapper;
         this.geometryUtils = geometryUtils;
         this.applicationJobsRepository = applicationJobsRepository;
+        this.cacheInvalidator = cacheInvalidator;
     }
 
     @Override
     @Transactional
-    public UserResponse postJob(PostJobRequest postJobRequest, String path, Long userId)  {
+    public JobResponse postJob(PostJobRequest postJobRequest, String path, Long userId)  {
 
         if (userId == null || userId <= 0) {
             throw new InvalidException("User ID is null or empty");
@@ -91,13 +94,19 @@ public class JobService implements JobServiceInterface {
         listing.setJob(savedJob);
         listing.setOwner(userEntity);
         activeJobsListRepository.save(listing);
+        cacheInvalidator.evictAfterCommit("jobs", "myJob");
+        log.info("Job posted: ownerId={}, jobId={}", userId, savedJob.getId());
 
-        JobDto dto = mapStructMapper.toJobDtoByJobEntity(savedJob);
+//        JobDto dto = mapStructMapper.toJobDtoByJobEntity(savedJob);
+//
+//        dto.setUserId(userEntity.getId());
+//        dto.setUsername(userEntity.getUsername());
 
-        dto.setUserId(userEntity.getId());
-        dto.setUsername(userEntity.getUsername());
-
-        return new UserResponse(201, SuccessMsg.JOB_201.name(), SuccessMsg.JOB_201.getMessage(), path, dto);
+        return new JobResponse(201,
+                SuccessMsg.JOB_201.name(),
+                SuccessMsg.JOB_201.getMessage(),
+                path
+        );
     }
 
     @Override
@@ -123,6 +132,8 @@ public class JobService implements JobServiceInterface {
 //        query fires instantly, preventing race conditions if the UI immediately requests a refreshed job feed.
 
         activeJobsListRepository.flush();
+        cacheInvalidator.evictAfterCommit("jobs", "myJob");
+        log.info("Job deleted: ownerId={}, jobId={}", ownerId, jobId);
 
 //        Saves IO: Removing .save() prevents Hibernate
 //        from running redundant select checks or double update operations on the jobs table context.
@@ -160,6 +171,8 @@ public class JobService implements JobServiceInterface {
 
         // PRODUCTION CLEAN SWEEP: Bulk update standby/pending candidates to REJECTED now that job finalized
         applicationJobsRepository.updateStatusForOthers(jobId, null, ApplicationStatusEnum.REJECTED);
+        cacheInvalidator.evictAfterCommit("jobs", "myJob", "applicants:v2");
+        log.info("Job completed: ownerId={}, jobId={}", ownerId, jobId);
 
         return new JobResponse(200, SuccessMsg.JOB_204.name(), "Job marked as completed successfully", path);
     }

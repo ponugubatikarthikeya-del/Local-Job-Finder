@@ -2,11 +2,12 @@ package com.localjobfinder.bakend.controllerPackage;
 
 import com.localjobfinder.bakend.apiDataPackage.AddressTakeRequest;
 import com.localjobfinder.bakend.apiDataPackage.EditProfileRequest;
-import com.localjobfinder.bakend.responsePackage.MyProfileResponse;
+import com.localjobfinder.bakend.dtoPackage.PublicProfileDto;
+import com.localjobfinder.bakend.dtoPackage.UserDto;
+import com.localjobfinder.bakend.responsePackage.UserProfileResponse;
 import com.localjobfinder.bakend.responsePackage.ProfileResponse;
 import com.localjobfinder.bakend.security.jwtTokenPackage.JwtDataProviderService;
 import com.localjobfinder.bakend.serviceInterfacePackage.ProfileServiceInterface;
-import com.localjobfinder.bakend.servicePackage.ProfileService;
 import com.localjobfinder.bakend.utilsPackage.SecurityUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -38,24 +39,24 @@ public class ProfileController {
 
 
     @GetMapping("me")
-    public ResponseEntity<MyProfileResponse> getMyProfile(HttpServletRequest httpServletRequest)  {
+    public ResponseEntity<UserProfileResponse<UserDto>> getMyProfile(HttpServletRequest httpServletRequest)  {
 
         Long userId = jwtDataProviderService.getCurrentUserId();
 
         log.info("getUserDetails api called for id={}",userId);
 
-        MyProfileResponse response = profileService.getMyProfile(userId, getPath(httpServletRequest));
+        UserProfileResponse<UserDto> response = profileService.getMyProfile(userId, getPath(httpServletRequest));
         return ResponseEntity.status(HttpStatusCode.valueOf(response.getStatus())).body(response);
     }
 
 
     @GetMapping("public-profile/{jobId}")
-    public ResponseEntity<MyProfileResponse> getPublicProfile(
+    public ResponseEntity<UserProfileResponse<PublicProfileDto>> getPublicProfile(
             @PathVariable Long jobId, HttpServletRequest httpServletRequest) {
 
         log.info("public profile api called for id={}",jobId);
 
-        MyProfileResponse response = profileService.getPublicProfile(jobId, getPath(httpServletRequest));
+        UserProfileResponse<PublicProfileDto> response = profileService.getPublicProfile(jobId, getPath(httpServletRequest));
 
         return ResponseEntity.status(HttpStatusCode.valueOf(response.getStatus())).body(response);
     }
@@ -77,11 +78,13 @@ public class ProfileController {
     @PatchMapping("update-address")
     public ResponseEntity<ProfileResponse> updateUserAddress(
             @Valid @RequestBody AddressTakeRequest addressTakeRequest, HttpServletRequest httpServletRequest ) {
+
         Long userId = jwtDataProviderService.getCurrentUserId();
         log.info("updateUserAddress api called for email={}",userId);
 
         ProfileResponse response = profileService.updateUserAddress(userId,addressTakeRequest,getPath(httpServletRequest));
         return ResponseEntity.status(HttpStatusCode.valueOf(response.getStatus())).body(response);
+
     }
 
 

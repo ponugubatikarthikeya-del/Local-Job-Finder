@@ -1,6 +1,7 @@
 package com.localjobfinder.bakend.paging;
 
 
+import com.localjobfinder.bakend.apiDataPackage.JobFilterCriteria;
 import com.localjobfinder.bakend.dbEntity.JobsEntity;
 import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Predicate;

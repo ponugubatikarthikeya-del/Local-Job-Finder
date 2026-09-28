@@ -36,7 +36,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 
@@ -127,7 +129,7 @@ public class AuthService implements AuthServiceInterface {
 
     @Override
     @Transactional
-    public LoginResponse signupOtpVerification(SignupOtpValidationRequest signupOtpValidationRequest, String path, String deviceId) {
+    public LoginResponse<Map<String,String>> signupOtpVerification(SignupOtpValidationRequest signupOtpValidationRequest, String path, String deviceId) {
 
         String targetDeviceId = (deviceId != null && !deviceId.isBlank()) ? deviceId : "DEFAULT_DEVICE";
 
@@ -189,13 +191,17 @@ public class AuthService implements AuthServiceInterface {
 
         tokenRepository.save(matchedToken);
 
-        return new LoginResponse(
+
+        Map<String,String> map = new HashMap<>();
+        map.put("jwtAccessToken", jwtAccessToken);
+        map.put("jwtRefreshToken", jwtRefreshToken);
+
+        return new LoginResponse<>(
                 201,
                 SuccessMsg.AUTH_201.name(),
                 SuccessMsg.AUTH_201.getMessage(),
                 path,
-                jwtAccessToken,
-                jwtRefreshToken
+                map
         );
     }
 
@@ -245,7 +251,7 @@ public class AuthService implements AuthServiceInterface {
 
     @Override
     @Transactional
-    public LoginResponse login(LoginRequest loginRequest, String path, String deviceId) throws Exception {
+    public LoginResponse<Map<String,String>> login(LoginRequest loginRequest, String path, String deviceId) throws Exception {
 
         String targetDeviceId = (deviceId != null && !deviceId.isBlank()) ? deviceId : "DEFAULT_DEVICE";
 
@@ -281,12 +287,16 @@ public class AuthService implements AuthServiceInterface {
         tokenEntity.setRevoked(false);
         tokenRepository.save(tokenEntity);
 
-        return new LoginResponse(200,
+        Map<String,String> map = new HashMap<>();
+        map.put("jwtAccessToken", jwtAccessToken);
+        map.put("jwtRefreshToken", jwtRefreshToken);
+
+        return new LoginResponse<>(200,
                 SuccessMsg.USER_200.name(),
                 SuccessMsg.USER_200.getMessage(),
                 path,
-                jwtAccessToken,
-                jwtRefreshToken);
+               map
+        );
     }
 
 
@@ -294,7 +304,7 @@ public class AuthService implements AuthServiceInterface {
 
     @Override
     @Transactional
-    public LoginResponse socialLogin(OAuthLoginRequest request, String path,String deviceId) {
+    public LoginResponse<Map<String,String>> socialLogin(OAuthLoginRequest request, String path,String deviceId) {
 
         if(deviceId == null || deviceId.isEmpty()){
             deviceId = "DEFAULT_DEVICE";
@@ -371,19 +381,22 @@ public class AuthService implements AuthServiceInterface {
         tokenEntity.setRevoked(false);
         tokenRepository.save(tokenEntity);
 
-        return new LoginResponse(
+        Map<String,String> map = new HashMap<>();
+        map.put("jwtAccessToken", jwtAccessToken);
+        map.put("jwtRefreshToken", jwtRefreshToken);
+
+        return new LoginResponse<>(
                 200,
                 SuccessMsg.USER_200.name(),
                 providerEnum.name() + " Authentication Successful",
                 path,
-                jwtAccessToken,
-                jwtRefreshToken
+                 map
         );
     }
 
     @Override
     @Transactional
-    public RefreshTokenResponse newAccessToken(String refreshToken, String path) {
+    public LoginResponse<Map<String,String>> newAccessToken(String refreshToken, String path) {
 
         // 1. Validate JWT structure & expiration first
         if (jwtService.isTokenExpired(refreshToken)) {
@@ -422,13 +435,16 @@ public class AuthService implements AuthServiceInterface {
 
         tokenRepository.save(matchedToken);
 
-        return new RefreshTokenResponse(
+        Map<String,String> map = new HashMap<>();
+        map.put("jwtAccessToken", newJwtAccessToken);
+        map.put("jwtRefreshToken", newJwtRefreshToken);
+
+        return new LoginResponse<>(
                 200,
                 SuccessMsg.AUTH_202.name(),
                 SuccessMsg.GEN_200.getMessage(),
                 path,
-                newJwtAccessToken,
-                newJwtRefreshToken
+                map
         );
     }
 
