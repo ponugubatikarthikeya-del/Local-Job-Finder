@@ -1,6 +1,5 @@
 package com.localjobfinder.bakend.serviceInterfacePackage;
 
-import com.localjobfinder.bakend.OauthPackage.OAuthLoginRequest;
 import com.localjobfinder.bakend.apiDataPackage.*;
 import com.localjobfinder.bakend.responsePackage.*;
 
@@ -30,7 +29,7 @@ public interface AuthServiceInterface {
     public AuthResponse forgetPasswordRequest(
             PasswordRequest passwordRequest, String request);
 
-    public LoginResponse<Map<String,String>> socialLogin (OAuthLoginRequest oAuthLoginRequest, String request,String deviceId) ;
+//    public LoginResponse<Map<String,String>> socialLogin (OAuthLoginRequest oAuthLoginRequest, String request,String deviceId) ;
 
     public AuthResponse logout(Long userId,String DeviceId,boolean allDevices,String request,FcmTokenRequest fcmTokenRequest);
 }

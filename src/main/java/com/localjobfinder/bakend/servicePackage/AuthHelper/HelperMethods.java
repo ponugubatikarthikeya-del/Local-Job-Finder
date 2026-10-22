@@ -1,6 +1,5 @@
 package com.localjobfinder.bakend.servicePackage.AuthHelper;
 
-import com.localjobfinder.bakend.OauthPackage.AuthLoginEnum;
 import com.localjobfinder.bakend.dbEntity.TokenEntity;
 import com.localjobfinder.bakend.dbEntity.UserEntity;
 import com.localjobfinder.bakend.enums.ErrorMsg;
@@ -28,22 +27,22 @@ public class HelperMethods {
     }
 
     // Helper method to keep provider-linking logic modular and clean
-    public void linkProviderId(UserEntity user, AuthLoginEnum provider, String providerId) {
-        if (providerId == null || providerId.isBlank()) return;
-
-        switch (provider) {
-            case GOOGLE -> {
-                if (user.getGoogleId() == null) user.setGoogleId(providerId);
-            }
-            case GITHUB -> {
-                if (user.getGithubId() == null) user.setGithubId(providerId);
-            }
-            case FACEBOOK -> {
-                if (user.getFacebookId() == null) user.setFacebookId(providerId);
-            }
-            default -> { /* LOCAL or HYBRID don't have provider IDs */}
-        }
-    }
+//    public void linkProviderId(UserEntity user, AuthLoginEnum provider, String providerId) {
+//        if (providerId == null || providerId.isBlank()) return;
+//
+//        switch (provider) {
+//            case GOOGLE -> {
+//                if (user.getGoogleId() == null) user.setGoogleId(providerId);
+//            }
+//            case GITHUB -> {
+//                if (user.getGithubId() == null) user.setGithubId(providerId);
+//            }
+//            case FACEBOOK -> {
+//                if (user.getFacebookId() == null) user.setFacebookId(providerId);
+//            }
+//            default -> { /* LOCAL or HYBRID don't have provider IDs */}
+//        }
+//    }
 
     /**
      * Multi-Device Session Management: Enforces max 3 device sessions per user.

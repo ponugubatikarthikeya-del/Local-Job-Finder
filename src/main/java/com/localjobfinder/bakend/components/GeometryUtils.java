@@ -33,4 +33,5 @@ public class GeometryUtils {
         point.setSRID(4326);
         return point;
     }
+
 }

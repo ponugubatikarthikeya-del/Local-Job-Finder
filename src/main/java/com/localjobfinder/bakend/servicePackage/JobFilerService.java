@@ -12,6 +12,7 @@ import com.localjobfinder.bakend.paging.PagedResponse;
 
 import com.localjobfinder.bakend.paging.SpecificationBuilder;
 import com.localjobfinder.bakend.repository.*;
+import com.localjobfinder.bakend.redis.JobCacheNames;
 import com.localjobfinder.bakend.serviceInterfacePackage.JobFilterServiceInterface;
 import com.localjobfinder.bakend.utilsPackage.MapStructMapper;
 import org.slf4j.Logger;
@@ -31,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 @Service
@@ -41,8 +43,6 @@ public class JobFilerService implements JobFilterServiceInterface {
     private final MapStructMapper mapStructMapper;
     private final GeometryFactory geometryFactory;
 
-    private static final String JOBS_CACHE = "jobs";
-    private static final String MY_JOB_CACHE = "myJob";
     private static final Logger log = LoggerFactory.getLogger(JobFilerService.class);
 
     @Autowired
@@ -57,8 +57,9 @@ public class JobFilerService implements JobFilterServiceInterface {
     @Override
     @Transactional(readOnly = true)
     @Cacheable(
-            value = JOBS_CACHE,
-            keyGenerator = "searchCacheKeyGenerator",
+            value = JobCacheNames.JOB_SEARCH,
+            key = "#userId + '_' + #criteria.search + '_' " +
+                    "+ #criteria.category + '_' + #criteria.salary + '_' + #criteria.page + '_' + #criteria.size",
             sync = true
     )
     public JobPagingResponse<PagedResponse<JobDto>> filterJobs(Long userId,
@@ -113,6 +114,7 @@ public class JobFilerService implements JobFilterServiceInterface {
         );
 
         Page<JobsEntity> jobsPage = jobsRepository.findAll(spec, pageable);
+
         log.debug("Loaded job search page from database: userId={}, page={}, size={}, resultCount={}",
                 userId, page, size, jobsPage.getNumberOfElements());
 
@@ -120,7 +122,13 @@ public class JobFilerService implements JobFilterServiceInterface {
             JobDto dto = mapStructMapper.toJobDtoByJobEntity(job);
             dto.setUserId(job.getUser().getId());
             dto.setUsername(job.getUser().getUsername());
-            dto.setDistance(0.0);
+            double distanceInKilometers = calculateDistanceInKilometers(
+                    criteria.getLat().doubleValue(),
+                    criteria.getLng().doubleValue(),
+                    job.getLatitude().doubleValue(),
+                    job.getLongitude().doubleValue()
+            );
+            dto.setDistance(String.format(Locale.ROOT, "%.1f", distanceInKilometers));
             return dto;
         }).collect(Collectors.toList());
 
@@ -133,7 +141,8 @@ public class JobFilerService implements JobFilterServiceInterface {
                 jobsPage.isLast()
         );
 
-        return new JobPagingResponse<>(200,
+        return new JobPagingResponse<>(
+                200,
                 SuccessMsg.APP_200.name(),
                 "Filtered listings compiled successfully",
                 path,
@@ -145,7 +154,7 @@ public class JobFilerService implements JobFilterServiceInterface {
     @Override
     @Transactional(readOnly = true)
     @Cacheable(
-            value = MY_JOB_CACHE,
+            value = JobCacheNames.MY_JOBS,
             key = "{#userId, #page, #size, #path}"
     )
     public JobPagingResponse<PagedResponse<JobDto>> getMyJobs(Long userId, String path, int page, int size) {
@@ -162,6 +171,7 @@ public class JobFilerService implements JobFilterServiceInterface {
                 Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id")));
 
         Page<JobsEntity> jobsPage = jobsRepository.findByUserId(userId,pageable);
+
         log.debug("Loaded user's job page from database: userId={}, page={}, size={}, resultCount={}",
                 userId, page, size, jobsPage.getNumberOfElements());
 
@@ -169,7 +179,7 @@ public class JobFilerService implements JobFilterServiceInterface {
             JobDto dto = mapStructMapper.toJobDtoByJobEntity(job);
             dto.setUserId(userId);
             dto.setUsername(job.getUser().getUsername());
-            dto.setDistance(0.0);
+            dto.setDistance(null);
             return dto;
         }).collect(Collectors.toList());
 
@@ -200,6 +210,31 @@ public class JobFilerService implements JobFilterServiceInterface {
                 lng.compareTo(BigDecimal.valueOf(180)) > 0) {
             throw new InvalidException("Latitude must be between -90 and 90 and longitude between -180 and 180");
         }
+    }
+
+    // Return the great-circle distance in kilometers; radiusInKilometers is only the search limit.
+    private double calculateDistanceInKilometers(
+            double userLatitude,
+            double userLongitude,
+            double jobLatitude,
+            double jobLongitude
+    ) {
+
+        final double earthRadiusInKilometers = 6371.0088;
+        double latitudeDelta = Math.toRadians(jobLatitude - userLatitude);
+        double longitudeDelta = Math.toRadians(jobLongitude - userLongitude);
+
+        double haversine = Math.pow(Math.sin(latitudeDelta / 2), 2)
+                + Math.cos(Math.toRadians(userLatitude))
+                * Math.cos(Math.toRadians(jobLatitude))
+                * Math.pow(Math.sin(longitudeDelta / 2), 2);
+
+        double centralAngle = 2 * Math.atan2(
+                Math.sqrt(haversine),
+                Math.sqrt(1 - haversine)
+        );
+
+        return earthRadiusInKilometers * centralAngle;
     }
 
 }

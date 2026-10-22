@@ -38,7 +38,7 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests(auth -> auth
                         // Perfected: Permits EVERYTHING under the "user/auth/" RequestMapping prefix automatically
-                        .requestMatchers("/user/**").permitAll()
+                        .requestMatchers("/user/auth/**").permitAll()
 //                        .requestMatchers("/user/profiles/**").permitAll()
 //                        .requestMatchers("/user/job/**").permitAll()
 //                        .requestMatchers("/user/job/applications/**").permitAll()

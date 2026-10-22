@@ -14,8 +14,8 @@ public class CorsConfig {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/user/**")
-                        .allowedOrigins("*") // In production production, restrict to your verified domains
-                        .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                        .allowedOrigins("*") // In production, restrict to your verified domains
+                        .allowedMethods("GET", "POST", "PUT","PATCH", "DELETE", "OPTIONS")
                         .allowedHeaders("*");
             }
         };

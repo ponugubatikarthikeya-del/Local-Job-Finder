@@ -1,11 +1,9 @@
-package com.localjobfinder.bakend.OauthPackage;
+package com.localjobfinder.bakend.enums;
 
 public enum AuthLoginEnum {
-
     LOCAL,
     HYBRID,
     GOOGLE,
     GITHUB,
     FACEBOOK
-
 }

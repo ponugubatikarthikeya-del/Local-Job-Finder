@@ -1,0 +1,1 @@
+ALTER TABLE shed_lock ADD COLUMN lock_type VARCHAR(255);
