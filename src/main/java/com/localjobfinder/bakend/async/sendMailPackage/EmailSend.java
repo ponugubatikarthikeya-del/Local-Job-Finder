@@ -24,10 +24,10 @@ public class EmailSend {
 
         mailMessage.setTo(email);
 
-        if(type.equals("signup")){
-            mailMessage.setSubject("Signup Verification");
-        } else {
+        if(type.equals("password reset")){
             mailMessage.setSubject("Reset your password");
+        } else {
+            mailMessage.setSubject("Signup Verification");
         }
 
         mailMessage.setText(text);
@@ -35,4 +35,5 @@ public class EmailSend {
         javaMailSender.send(mailMessage);
 
     }
+
 }

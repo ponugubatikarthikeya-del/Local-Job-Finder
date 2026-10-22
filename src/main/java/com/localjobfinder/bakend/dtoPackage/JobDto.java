@@ -19,7 +19,7 @@ public class JobDto {
     private JobTypeEnum jobType;
     private String address;
     private JobStatusEnum status;
-    private Double distance;
+    private String distance;
     private Instant jobTime;
     private Instant createdAt;
 }

@@ -1,9 +1,9 @@
-package com.localjobfinder.bakend.components.schedulers;
+package com.localjobfinder.bakend.schedule;
 
 import com.localjobfinder.bakend.enums.AccountStatusEnum;
-import com.localjobfinder.bakend.repository.FcmTokenRepository;
 import com.localjobfinder.bakend.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
@@ -19,16 +19,19 @@ import java.time.temporal.ChronoUnit;
 public class AccountCleanupScheduler {
 
     private final UserRepository userRepository;
-    private final FcmTokenRepository fcmTokenRepository;
 
     @Autowired
-    public AccountCleanupScheduler(UserRepository userRepository, FcmTokenRepository fcmTokenRepository) {
+    public AccountCleanupScheduler(UserRepository userRepository) {
         this.userRepository = userRepository;
-        this.fcmTokenRepository = fcmTokenRepository;
     }
 
     // Daily maintenance at midnight
     @Scheduled(cron = "0 0 0 * * ?")
+    @SchedulerLock(
+            name = "USER_UNVERIFIED_ACCOUNTS_CLEANUP",
+            lockAtMostFor = "15m",
+            lockAtLeastFor = "5m"
+    )
     public void removeExpiredUnverifiedAccounts() {
         executeCleanup();
     }
@@ -49,15 +52,20 @@ public class AccountCleanupScheduler {
     }
 
 
-    @Scheduled(cron = "0 0 2 * * ?", zone = "Asia/Kolkata") // Runs at exactly 2:00 AM IST
-//    @Scheduled(cron = "*/10 * * * * ?") // 10 sec test
-    @Transactional
-    public void purgeExpiredFcmTokens() {
-        // Correct math calculation step using Instants for historical boundary comparisons
-        Instant limit = Instant.now().minus(90, ChronoUnit.DAYS);
-
-        fcmTokenRepository.deleteByUpdatedAtBefore(limit);
-        log.info("Cron job executed: Cleaned up expired FCM tokens older than 90 days.");
-    }
+//    @Scheduled(cron = "0 0 2 * * ?", zone = "Asia/Kolkata") // Runs at exactly 2:00 AM IST
+////    @Scheduled(cron = "*/10 * * * * ?") // 10 sec test
+//    @SchedulerLock(
+//            name = "FCM_TOKEN_CLEANUP",
+//            lockAtMostFor = "15m",
+//            lockAtLeastFor = "5m"
+//    )
+//    @Transactional
+//    public void purgeExpiredFcmTokens() {
+//        // Correct math calculation step using Instants for historical boundary comparisons
+//        Instant limit = Instant.now().minus(90, ChronoUnit.DAYS);
+//
+//        fcmTokenRepository.deleteByUpdatedAtBefore(limit);
+//        log.info("Cron job executed: Cleaned up expired FCM tokens older than 90 days.");
+//    }
 
 }

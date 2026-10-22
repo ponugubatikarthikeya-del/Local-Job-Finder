@@ -1,6 +1,5 @@
 package com.localjobfinder.bakend.controllerPackage;
 
-import com.localjobfinder.bakend.OauthPackage.OAuthLoginRequest;
 import com.localjobfinder.bakend.apiDataPackage.*;
 import com.localjobfinder.bakend.enums.ErrorMsg;
 import com.localjobfinder.bakend.exceptionPackage.custom_exceptions.InvalidException;
@@ -17,7 +16,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.client.RestTemplate;
 
 import java.util.Map;
 
@@ -154,18 +152,18 @@ public class AuthController {
         return ResponseEntity.status(HttpStatusCode.valueOf(response.getStatus())).body(response);
     }
 
-    @PostMapping("social-login")
-    public ResponseEntity<LoginResponse<Map<String,String>>> socialLogin(
-            @Valid @RequestBody OAuthLoginRequest oAuthLoginRequest,
-            HttpServletRequest httpServletRequest) {
-
-        log.info("Social Login initiated for provider={}", oAuthLoginRequest.getProvider());
-
-        String deviceId = httpServletRequest.getHeader("X-Device-Id");
-
-        LoginResponse<Map<String,String>> response = authService.socialLogin(oAuthLoginRequest, getPath(httpServletRequest),deviceId);
-        return ResponseEntity.status(HttpStatusCode.valueOf(response.getStatus())).body(response);
-    }
+//    @PostMapping("social-login")
+//    public ResponseEntity<LoginResponse<Map<String,String>>> socialLogin(
+//            @Valid @RequestBody OAuthLoginRequest oAuthLoginRequest,
+//            HttpServletRequest httpServletRequest) {
+//
+//        log.info("Social Login initiated for provider={}", oAuthLoginRequest.getProvider());
+//
+//        String deviceId = httpServletRequest.getHeader("X-Device-Id");
+//
+//        LoginResponse<Map<String,String>> response = authService.socialLogin(oAuthLoginRequest, getPath(httpServletRequest),deviceId);
+//        return ResponseEntity.status(HttpStatusCode.valueOf(response.getStatus())).body(response);
+//    }
 
     @PostMapping("logout")
     public ResponseEntity<AuthResponse> logout(
@@ -183,18 +181,5 @@ public class AuthController {
 
     }
 
-
-    @GetMapping("getData")
-    public String getData(){
-
-        RestTemplate restTemplate = new RestTemplate();
-
-        String url = "https://jsonplaceholder.typicode.com/posts/1";
-
-        log.info("external api called for url={}", url);
-
-        return restTemplate.getForObject(url, String.class);
-
-    }
 }
 

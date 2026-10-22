@@ -2,7 +2,7 @@ package com.localjobfinder.bakend.dbEntity;
 
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.localjobfinder.bakend.enums.AccountStatusEnum;
-import com.localjobfinder.bakend.OauthPackage.AuthLoginEnum;
+import com.localjobfinder.bakend.enums.AuthLoginEnum;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -40,14 +40,14 @@ public class UserEntity {
     @Column(name = "auth_provider")
     private AuthLoginEnum authProvider; // "LOCAL", "GOOGLE", or "HYBRID"
 
-    @Column(name = "google_id", unique = true)
-    private String googleId;
-
-    @Column(name ="github_id",unique = true)
-    private String githubId;
-
-    @Column(name = "facebook_id",unique = true)
-    private String facebookId;
+//    @Column(name = "google_id", unique = true)
+//    private String googleId;
+//
+//    @Column(name ="github_id",unique = true)
+//    private String githubId;
+//
+//    @Column(name = "facebook_id",unique = true)
+//    private String facebookId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "account_status")

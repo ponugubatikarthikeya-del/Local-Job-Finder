@@ -14,6 +14,7 @@ import com.localjobfinder.bakend.exceptionPackage.custom_exceptions.ResourceNotF
 import com.localjobfinder.bakend.exceptionPackage.custom_exceptions.UnauthorizedException;
 import com.localjobfinder.bakend.repository.JobsRepository;
 import com.localjobfinder.bakend.repository.UserRepository;
+import com.localjobfinder.bakend.redis.RedisCacheInvalidator;
 import com.localjobfinder.bakend.responsePackage.UserProfileResponse;
 import com.localjobfinder.bakend.responsePackage.ProfileResponse;
 import com.localjobfinder.bakend.serviceInterfacePackage.ProfileServiceInterface;
@@ -23,7 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
@@ -40,17 +41,20 @@ public class ProfileService implements ProfileServiceInterface {
     private UserRepository userRepository;
     private MapStructMapper mapStructMapper;
     private JobsRepository jobsRepository;
+    private RedisCacheInvalidator cacheInvalidator;
 
     private static final String MY_PROFILE_CACHE = "myProfileCache";
     private static final String PUBLIC_PROFILE_CACHE = "publicProfileCache";
 
 
     @Autowired
-    public void setUserRepository(UserRepository userRepository, MapStructMapper mapStructMapper, JobsRepository jobsRepository)
+    public void setUserRepository(UserRepository userRepository, MapStructMapper mapStructMapper,
+                                  JobsRepository jobsRepository, RedisCacheInvalidator cacheInvalidator)
     {
         this.userRepository = userRepository;
         this.mapStructMapper = mapStructMapper;
         this.jobsRepository = jobsRepository;
+        this.cacheInvalidator = cacheInvalidator;
     }
 
     // get user details by path variable user id
@@ -143,10 +147,6 @@ public class ProfileService implements ProfileServiceInterface {
 
     @Override
     @Transactional
-    @CachePut(
-            value = MY_PROFILE_CACHE,
-            key = "#userId"
-    )
     public ProfileResponse updateProfile(Long userId, String path, EditProfileRequest request) {
 
         if (userId == null) {
@@ -190,6 +190,8 @@ public class ProfileService implements ProfileServiceInterface {
             profile.setDateOfBirth(request.getDateOfBirth());
         }
 
+        cacheInvalidator.evictAfterCommit(MY_PROFILE_CACHE, PUBLIC_PROFILE_CACHE);
+
         // NOTE: userRepository.save(user) removed. @Transactional handles the UPDATE query automatically.
 
         return new ProfileResponse(
@@ -202,10 +204,6 @@ public class ProfileService implements ProfileServiceInterface {
 
     @Override
     @Transactional
-    @CachePut(
-            value = MY_PROFILE_CACHE,
-            key = "#id"
-    )
     public ProfileResponse updateUserAddress(Long id, AddressTakeRequest addressTakeRequest, String request)  {
 
         if(id == null){
@@ -234,6 +232,8 @@ public class ProfileService implements ProfileServiceInterface {
         profilesEntity.setLatitude(addressTakeRequest.getLatitude());
         profilesEntity.setLongitude(addressTakeRequest.getLongitude());
         userRepository.save(user);
+
+        cacheInvalidator.evictAfterCommit(MY_PROFILE_CACHE, PUBLIC_PROFILE_CACHE);
 
         return new ProfileResponse(
                 201,

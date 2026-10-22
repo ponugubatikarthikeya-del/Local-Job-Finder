@@ -1,21 +1,16 @@
 package com.localjobfinder.bakend.servicePackage;
 
-import com.localjobfinder.bakend.OauthPackage.OAuthLoginRequest;
-import com.localjobfinder.bakend.OauthPackage.OAuthProviderService;
 import com.localjobfinder.bakend.apiDataPackage.*;
 import com.localjobfinder.bakend.dbEntity.ProfilesEntity;
 import com.localjobfinder.bakend.dbEntity.TokenEntity;
 import com.localjobfinder.bakend.dbEntity.UserEntity;
-import com.localjobfinder.bakend.OauthPackage.OAuthUserDto;
 import com.localjobfinder.bakend.enums.AccountStatusEnum;
-import com.localjobfinder.bakend.OauthPackage.AuthLoginEnum;
 import com.localjobfinder.bakend.enums.ErrorMsg;
 import com.localjobfinder.bakend.enums.SuccessMsg;
 import com.localjobfinder.bakend.exceptionPackage.custom_exceptions.DuplicateAvailableException;
 import com.localjobfinder.bakend.exceptionPackage.custom_exceptions.UnauthorizedException;
 import com.localjobfinder.bakend.exceptionPackage.custom_exceptions.InvalidException;
 import com.localjobfinder.bakend.exceptionPackage.custom_exceptions.ResourceNotFoundException;
-import com.localjobfinder.bakend.repository.FcmTokenRepository;
 import com.localjobfinder.bakend.repository.ProfileRepository;
 import com.localjobfinder.bakend.responsePackage.*;
 import com.localjobfinder.bakend.security.jwtTokenPackage.JwtService;
@@ -26,7 +21,6 @@ import com.localjobfinder.bakend.serviceInterfacePackage.AuthServiceInterface;
 import com.localjobfinder.bakend.servicePackage.AuthHelper.AuthHelperMethods;
 import com.localjobfinder.bakend.servicePackage.AuthHelper.HelperMethods;
 import com.localjobfinder.bakend.utilsPackage.RandomUtil;
-import com.sun.jdi.request.DuplicateRequestException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -54,24 +48,21 @@ public class AuthService implements AuthServiceInterface {
     private TokenRepository tokenRepository;
 
     private ProfileRepository profileRepository;
-    private OAuthProviderService oAuthProviderService;
     private HelperMethods helperMethods;
-    private FcmTokenRepository fcmTokenRepository;
+//    private FcmTokenRepository fcmTokenRepository;
 
     private AuthHelperMethods authHelperMethods;
 
 
     @Autowired
-    public void setUserRepository(OAuthProviderService oAuthProviderService
-            , UserRepository userRepository
+    public void setUserRepository(UserRepository userRepository
             , JwtService jwtService,
                                   EmailSend emailSend,
                                   PasswordEncoder passwordEncoder,
                                   TokenRepository tokenRepository, ProfileRepository profileRepository,
                                   HelperMethods helperMethods,
-                                  FcmTokenRepository fcmTokenRepository,
                                   AuthHelperMethods authHelperMethods) {
-        this.oAuthProviderService = oAuthProviderService;
+//        this.oAuthProviderService = oAuthProviderService;
         this.userRepository = userRepository;
         this.jwtService = jwtService;
         this.emailSend = emailSend;
@@ -79,7 +70,7 @@ public class AuthService implements AuthServiceInterface {
         this.tokenRepository = tokenRepository;
         this.profileRepository = profileRepository;
         this.helperMethods = helperMethods;
-        this.fcmTokenRepository = fcmTokenRepository;
+//        this.fcmTokenRepository = fcmTokenRepository;
         this.authHelperMethods = authHelperMethods;
     }
 
@@ -191,7 +182,6 @@ public class AuthService implements AuthServiceInterface {
 
         tokenRepository.save(matchedToken);
 
-
         Map<String,String> map = new HashMap<>();
         map.put("jwtAccessToken", jwtAccessToken);
         map.put("jwtRefreshToken", jwtRefreshToken);
@@ -301,98 +291,98 @@ public class AuthService implements AuthServiceInterface {
 
 
     // 4. SOCIAL OAUTH LOGIN & AUTO-LINKING .............................................................
-
-    @Override
-    @Transactional
-    public LoginResponse<Map<String,String>> socialLogin(OAuthLoginRequest request, String path,String deviceId) {
-
-        if(deviceId == null || deviceId.isEmpty()){
-            deviceId = "DEFAULT_DEVICE";
-//            throw new CustomException(ErrorMsg.AUTHZ_003,400);
-        }
-
-        // 1. Fetch normalized user payload across Google, GitHub, Facebook, etc.
-        OAuthUserDto oAuthUser = oAuthProviderService.fetchOAuthUser(request.getProvider(), request.getToken());
-
-        if (oAuthUser == null || oAuthUser.getProviderName() == null) {
-            throw new UnauthorizedException(ErrorMsg.OAUTH_004.getMessage()); // unauthorized user access
-        }
-
-        if (oAuthUser.getEmail() == null || oAuthUser.getEmail().isBlank()) {
-            throw new InvalidException(ErrorMsg.OAUTH_008.getMessage());
-        }
-
-        if(!oAuthUser.isEmailVerified()){
-            throw new UnauthorizedException(ErrorMsg.OAUTH_004.getMessage());
-        }
-
-        AuthLoginEnum providerEnum = oAuthUser.getProviderName(); // Assuming oAuthUser returns AuthLoginEnum
-
-        Optional<UserEntity> userOpt = userRepository.findByEmail(oAuthUser.getEmail());
-
-        UserEntity user;
-
-        if (userOpt.isPresent()) {
-            user = userOpt.get();
-
-            // AUTO-LINKING: Dynamically map the Provider ID to the correct column
-            helperMethods.linkProviderId(user, providerEnum, oAuthUser.getProviderId());
-
-            // Upgrade LOCAL-only account to HYBRID if they log in via social auth
-            if (AuthLoginEnum.LOCAL.equals(user.getAuthProvider())) {
-                user.setAuthProvider(AuthLoginEnum.HYBRID);
-            }
-
-            // Auto-verify account status upon successful social auth
-            user.setAccountStatus(AccountStatusEnum.VERIFIED);
-            userRepository.save(user);
-
-        } else {
-            // CASE 1: First-time signup via Social Provider
-            user = new UserEntity();
-            user.setEmail(oAuthUser.getEmail());
-            user.setUsername(oAuthUser.getName() != null ? oAuthUser.getName() : oAuthUser.getEmail().split("@")[0]);
-            user.setAuthProvider(providerEnum);
-            user.setPasswordHash(null); // Social signups do not require local passwords
-            user.setAccountStatus(AccountStatusEnum.VERIFIED);
-
-            // Dynamically set Provider ID
-            helperMethods.linkProviderId(user, providerEnum, oAuthUser.getProviderId());
-
-            user = userRepository.save(user);
-        }
-
-        // Safe Profile Creation
-        if (profileRepository.findByUserId(user.getId()).isEmpty()) {
-            ProfilesEntity profile = new ProfilesEntity();
-            profile.setUser(user);
-            profileRepository.save(profile);
-        }
-
-        // 2. Issue System JWT Access & Refresh Tokens
-        String jwtAccessToken = jwtService.generateAccessToken(user.getId());
-        String jwtRefreshToken = jwtService.generateRefreshToken(user.getId());
-
-        // NEW CODE: Overwrite existing user row on OAuth login
-        TokenEntity tokenEntity = helperMethods.getOrCreateTokenEntityForDevice(user.getId(), deviceId);
-        tokenEntity.setHashAccessToken(jwtAccessToken);
-        tokenEntity.setHashRefreshToken(jwtRefreshToken);
-        tokenEntity.setTokenExpiresAt(Instant.now().plus(180, ChronoUnit.DAYS));
-        tokenEntity.setRevoked(false);
-        tokenRepository.save(tokenEntity);
-
-        Map<String,String> map = new HashMap<>();
-        map.put("jwtAccessToken", jwtAccessToken);
-        map.put("jwtRefreshToken", jwtRefreshToken);
-
-        return new LoginResponse<>(
-                200,
-                SuccessMsg.USER_200.name(),
-                providerEnum.name() + " Authentication Successful",
-                path,
-                 map
-        );
-    }
+//
+//    @Override
+//    @Transactional
+//    public LoginResponse<Map<String,String>> socialLogin(OAuthLoginRequest request, String path,String deviceId) {
+//
+//        if(deviceId == null || deviceId.isEmpty()){
+//            deviceId = "DEFAULT_DEVICE";
+////            throw new CustomException(ErrorMsg.AUTHZ_003,400);
+//        }
+//
+//        // 1. Fetch normalized user payload across Google, GitHub, Facebook, etc.
+//        OAuthUserDto oAuthUser = oAuthProviderService.fetchOAuthUser(request.getProvider(), request.getToken());
+//
+//        if (oAuthUser == null || oAuthUser.getProviderName() == null) {
+//            throw new UnauthorizedException(ErrorMsg.OAUTH_004.getMessage()); // unauthorized user access
+//        }
+//
+//        if (oAuthUser.getEmail() == null || oAuthUser.getEmail().isBlank()) {
+//            throw new InvalidException(ErrorMsg.OAUTH_008.getMessage());
+//        }
+//
+//        if(!oAuthUser.isEmailVerified()){
+//            throw new UnauthorizedException(ErrorMsg.OAUTH_004.getMessage());
+//        }
+//
+//        AuthLoginEnum providerEnum = oAuthUser.getProviderName(); // Assuming oAuthUser returns AuthLoginEnum
+//
+//        Optional<UserEntity> userOpt = userRepository.findByEmail(oAuthUser.getEmail());
+//
+//        UserEntity user;
+//
+//        if (userOpt.isPresent()) {
+//            user = userOpt.get();
+//
+//            // AUTO-LINKING: Dynamically map the Provider ID to the correct column
+//            helperMethods.linkProviderId(user, providerEnum, oAuthUser.getProviderId());
+//
+//            // Upgrade LOCAL-only account to HYBRID if they log in via social auth
+//            if (AuthLoginEnum.LOCAL.equals(user.getAuthProvider())) {
+//                user.setAuthProvider(AuthLoginEnum.HYBRID);
+//            }
+//
+//            // Auto-verify account status upon successful social auth
+//            user.setAccountStatus(AccountStatusEnum.VERIFIED);
+//            userRepository.save(user);
+//
+//        } else {
+//            // CASE 1: First-time signup via Social Provider
+//            user = new UserEntity();
+//            user.setEmail(oAuthUser.getEmail());
+//            user.setUsername(oAuthUser.getName() != null ? oAuthUser.getName() : oAuthUser.getEmail().split("@")[0]);
+//            user.setAuthProvider(providerEnum);
+//            user.setPasswordHash(null); // Social signups do not require local passwords
+//            user.setAccountStatus(AccountStatusEnum.VERIFIED);
+//
+//            // Dynamically set Provider ID
+//            helperMethods.linkProviderId(user, providerEnum, oAuthUser.getProviderId());
+//
+//            user = userRepository.save(user);
+//        }
+//
+//        // Safe Profile Creation
+//        if (profileRepository.findByUserId(user.getId()).isEmpty()) {
+//            ProfilesEntity profile = new ProfilesEntity();
+//            profile.setUser(user);
+//            profileRepository.save(profile);
+//        }
+//
+//        // 2. Issue System JWT Access & Refresh Tokens
+//        String jwtAccessToken = jwtService.generateAccessToken(user.getId());
+//        String jwtRefreshToken = jwtService.generateRefreshToken(user.getId());
+//
+//        // NEW CODE: Overwrite existing user row on OAuth login
+//        TokenEntity tokenEntity = helperMethods.getOrCreateTokenEntityForDevice(user.getId(), deviceId);
+//        tokenEntity.setHashAccessToken(jwtAccessToken);
+//        tokenEntity.setHashRefreshToken(jwtRefreshToken);
+//        tokenEntity.setTokenExpiresAt(Instant.now().plus(180, ChronoUnit.DAYS));
+//        tokenEntity.setRevoked(false);
+//        tokenRepository.save(tokenEntity);
+//
+//        Map<String,String> map = new HashMap<>();
+//        map.put("jwtAccessToken", jwtAccessToken);
+//        map.put("jwtRefreshToken", jwtRefreshToken);
+//
+//        return new LoginResponse<>(
+//                200,
+//                SuccessMsg.USER_200.name(),
+//                providerEnum.name() + " Authentication Successful",
+//                path,
+//                 map
+//        );
+//    }
 
     @Override
     @Transactional
@@ -606,7 +596,7 @@ public class AuthService implements AuthServiceInterface {
         // 1. Best-effort FCM Token removal (never blocks session logout)
         if (fcmTokenRequest != null && fcmTokenRequest.getDeviceFcmToken() != null && !fcmTokenRequest.getDeviceFcmToken().isBlank()) {
             try {
-                fcmTokenRepository.deleteByUserIdAndDeviceToken(userId, fcmTokenRequest.getDeviceFcmToken());
+//                fcmTokenRepository.deleteByUserIdAndDeviceToken(userId, fcmTokenRequest.getDeviceFcmToken());
                 log.info("Successfully removed FCM token for userId={}", userId);
             } catch (Exception e) {
                 log.warn("Failed to delete FCM token on logout for userId={}: {}", userId, e.getMessage());

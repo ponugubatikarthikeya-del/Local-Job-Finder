@@ -11,6 +11,7 @@ import com.localjobfinder.bakend.exceptionPackage.custom_exceptions.InvalidExcep
 import com.localjobfinder.bakend.exceptionPackage.custom_exceptions.ResourceNotFoundException;
 import com.localjobfinder.bakend.repository.*;
 import com.localjobfinder.bakend.redis.RedisCacheInvalidator;
+import com.localjobfinder.bakend.redis.JobCacheNames;
 import com.localjobfinder.bakend.responsePackage.JobResponse;
 import com.localjobfinder.bakend.responsePackage.JobDataResponse;
 import com.localjobfinder.bakend.serviceInterfacePackage.JobServiceInterface;
@@ -19,6 +20,8 @@ import com.localjobfinder.bakend.components.GeometryUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -94,7 +97,9 @@ public class JobService implements JobServiceInterface {
         listing.setJob(savedJob);
         listing.setOwner(userEntity);
         activeJobsListRepository.save(listing);
-        cacheInvalidator.evictAfterCommit("jobs", "myJob");
+
+        cacheInvalidator.evictAfterCommit(JobCacheNames.JOB_SEARCH, JobCacheNames.MY_JOBS);
+
         log.info("Job posted: ownerId={}, jobId={}", userId, savedJob.getId());
 
 //        JobDto dto = mapStructMapper.toJobDtoByJobEntity(savedJob);
@@ -132,7 +137,9 @@ public class JobService implements JobServiceInterface {
 //        query fires instantly, preventing race conditions if the UI immediately requests a refreshed job feed.
 
         activeJobsListRepository.flush();
-        cacheInvalidator.evictAfterCommit("jobs", "myJob");
+
+        cacheInvalidator.evictAfterCommit(JobCacheNames.JOB_SEARCH, JobCacheNames.MY_JOBS);
+
         log.info("Job deleted: ownerId={}, jobId={}", ownerId, jobId);
 
 //        Saves IO: Removing .save() prevents Hibernate
@@ -171,7 +178,13 @@ public class JobService implements JobServiceInterface {
 
         // PRODUCTION CLEAN SWEEP: Bulk update standby/pending candidates to REJECTED now that job finalized
         applicationJobsRepository.updateStatusForOthers(jobId, null, ApplicationStatusEnum.REJECTED);
-        cacheInvalidator.evictAfterCommit("jobs", "myJob", "applicants:v2");
+
+        cacheInvalidator.evictAfterCommit(
+                JobCacheNames.JOB_SEARCH,
+                JobCacheNames.MY_JOBS,
+                JobCacheNames.APPLICANTS
+        );
+
         log.info("Job completed: ownerId={}, jobId={}", ownerId, jobId);
 
         return new JobResponse(200, SuccessMsg.JOB_204.name(), "Job marked as completed successfully", path);

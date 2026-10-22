@@ -9,6 +9,7 @@ import com.localjobfinder.bakend.exceptionPackage.custom_exceptions.*;
 import com.localjobfinder.bakend.paging.JobPagingResponse;
 import com.localjobfinder.bakend.paging.PagedResponse;
 import com.localjobfinder.bakend.repository.*;
+import com.localjobfinder.bakend.redis.JobCacheNames;
 import com.localjobfinder.bakend.redis.RedisCacheInvalidator;
 import com.localjobfinder.bakend.responsePackage.JobResponse;
 
@@ -18,7 +19,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheConfig;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -41,7 +44,7 @@ public class ApplicationService implements ApplicationServiceInterface {
     private final ApplicationEventPublisher eventPublisher;
     private final RedisCacheInvalidator cacheInvalidator;
 
-    private static final String Applicants_CACHE = "applicants:v2";
+    private static final String APPLICANTS_CACHE = JobCacheNames.APPLICANTS;
 
     private static final Logger log = LoggerFactory.getLogger(ApplicationService.class);
 
@@ -95,7 +98,9 @@ public class ApplicationService implements ApplicationServiceInterface {
         application.setJob(job);
         application.setStatus(ApplicationStatusEnum.APPLIED);
         applicationJobsRepository.save(application);
-        cacheInvalidator.evictAfterCommit(Applicants_CACHE);
+
+        cacheInvalidator.evictAfterCommit(APPLICANTS_CACHE);
+
         log.info("Job application created: userId={}, jobId={}", userId, jobId);
 
         // Notify Job Owner about the new application asynchronously
@@ -131,7 +136,7 @@ public class ApplicationService implements ApplicationServiceInterface {
     @Override
     @Transactional(readOnly = true)
     @Cacheable(
-            value = Applicants_CACHE,
+            value = APPLICANTS_CACHE,
             key = "{#ownerId, #jobId, #page, #size, #path}",
             sync = true
     )
@@ -192,6 +197,7 @@ public class ApplicationService implements ApplicationServiceInterface {
         if (ownerId == null || ownerId <= 0) {
             throw new UnauthorizedException(ErrorMsg.AUTH_004.getMessage());
         }
+
         if (jobId == null || applicantId == null) {
             throw new ResourceNotFoundException(ErrorMsg.BUS_001.getMessage());
         }
@@ -225,7 +231,13 @@ public class ApplicationService implements ApplicationServiceInterface {
         // 3. Shift job state tracking node
         job.setStatus(JobStatusEnum.IN_PROGRESS);
         jobsRepository.save(job);
-        cacheInvalidator.evictAfterCommit(Applicants_CACHE, "jobs", "myJob");
+
+        cacheInvalidator.evictAfterCommit(
+                APPLICANTS_CACHE,
+                JobCacheNames.JOB_SEARCH,
+                JobCacheNames.MY_JOBS
+        );
+
         log.info("Applicant accepted: ownerId={}, jobId={}, applicantId={}", ownerId, jobId, applicantId);
 
 //        // 4. Fire Async push notification payload delivery via FCM integration module
@@ -286,7 +298,13 @@ public class ApplicationService implements ApplicationServiceInterface {
         application.setStatus(ApplicationStatusEnum.REJECTED);
 
         applicationJobsRepository.save(application);
-        cacheInvalidator.evictAfterCommit(Applicants_CACHE, "jobs", "myJob");
+
+        cacheInvalidator.evictAfterCommit(
+                APPLICANTS_CACHE,
+                JobCacheNames.JOB_SEARCH,
+                JobCacheNames.MY_JOBS
+        );
+
         log.info("Applicant rejected: ownerId={}, jobId={}, applicantId={}", ownerId, jobId, applicantId);
 
         return new JobResponse(200, SuccessMsg.APP_202.name(), SuccessMsg.APP_202.getMessage(), path);

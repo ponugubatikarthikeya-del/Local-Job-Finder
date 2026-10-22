@@ -37,6 +37,7 @@ public class JwtService {
 
     // generate signing key
     private SecretKey getKey() {
+
         String key = (secretKey != null && secretKey.trim().length() >= 32)
                 ? secretKey
                 : System.getenv("JWT_SECRET");

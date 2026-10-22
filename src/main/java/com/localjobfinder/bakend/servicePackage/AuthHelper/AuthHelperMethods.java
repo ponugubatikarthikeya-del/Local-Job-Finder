@@ -1,14 +1,15 @@
 package com.localjobfinder.bakend.servicePackage.AuthHelper;
 
-import com.localjobfinder.bakend.OauthPackage.AuthLoginEnum;
 import com.localjobfinder.bakend.apiDataPackage.SignupRequest;
 import com.localjobfinder.bakend.dbEntity.TokenEntity;
 import com.localjobfinder.bakend.dbEntity.UserEntity;
 import com.localjobfinder.bakend.enums.AccountStatusEnum;
+import com.localjobfinder.bakend.enums.AuthLoginEnum;
 import com.localjobfinder.bakend.enums.ErrorMsg;
 import com.localjobfinder.bakend.repository.TokenRepository;
 import com.localjobfinder.bakend.repository.UserRepository;
 import com.sun.jdi.request.DuplicateRequestException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +27,7 @@ public class AuthHelperMethods {
     private final HelperMethods helperMethods;
     private final TokenRepository tokenRepository;
 
+    @Autowired
     public AuthHelperMethods(UserRepository userRepository,
                              PasswordEncoder passwordEncoder,
                              HelperMethods helperMethods,TokenRepository tokenRepository) {
@@ -90,7 +92,6 @@ public class AuthHelperMethods {
         tokenEntity.setOtpExpiry(Instant.now().plusSeconds(otpExpirationSeconds)); // Simplified time syntax
         tokenEntity.setRevoked(false);
         tokenRepository.save(tokenEntity);
-
     }
 
 
