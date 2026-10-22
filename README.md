@@ -120,9 +120,10 @@ Check the project's Maven configuration and development documentation for exact 
 ### Clone the Repository
 
 ```bash
-git clone https://github.com/ponugubatikarthikeya-del/Local-Job-Finder.git
-cd Local-Job-Finder
+git clone <YOUR_BACKEND_REPOSITORY_URL>
+cd <YOUR_BACKEND_REPOSITORY_DIRECTORY>
 ```
+Replace the placeholders with your actual GitHub repository URL and directory name.
 
 ### Configure Environment Variables
 
