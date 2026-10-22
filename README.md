@@ -6,25 +6,16 @@ Built with **Java 21, Spring Boot, and MySQL**, with supporting components for a
 
 ## Table of Contents
 
-- [Overview](#overview)
 - [Features](#features)
 - [Technology Stack](#technology-stack)
 - [Architecture](#architecture)
 - [Database and Migrations](#database-and-migrations)
 - [Getting Started](#getting-started)
-- [Configuration](#configuration)
-- [Running the Application](#running-the-application)
+- [Start the Application](#start-the-application)
 - [API Documentation](#api-documentation)
 - [Testing](#testing)
 - [Project Documentation](#project-documentation)
-- [Known Limitations](#known-limitations)
-- [Future Improvements](#future-improvements)
-
-## Overview
-
-Finding suitable local part-time jobs can be difficult when opportunities are scattered across different sources. Local Job Finder aims to simplify this process by providing APIs for job discovery, listing management, and application tracking.
-
-This repository contains the **backend REST API only**. The Android frontend is maintained separately.
+- [Related Project](#related-project)
 
 ## Features
 
@@ -54,8 +45,6 @@ This repository contains the **backend REST API only**. The Android frontend is 
 - Cache-error handling and logging for Redis failures.
 - Asynchronous email delivery for verification and password-reset workflows.
 - Scheduled cleanup of unverified accounts, coordinated across application instances using ShedLock.
-
-> **Implementation note:** Feature descriptions reflect the current project documentation and source review. Verify each workflow and its authorization rules with tests before treating it as production-ready.
 
 ## Technology Stack
 
@@ -131,11 +120,9 @@ Check the project's Maven configuration and development documentation for exact 
 ### Clone the Repository
 
 ```bash
-git clone <YOUR_BACKEND_REPOSITORY_URL>
-cd <YOUR_BACKEND_REPOSITORY_DIRECTORY>
+git clone https://github.com/ponugubatikarthikeya-del/Local-Job-Finder.git
+cd Local-Job-Finder
 ```
-
-Replace the placeholders with your actual GitHub repository URL and directory name.
 
 ### Configure Environment Variables
 
@@ -156,8 +143,6 @@ On macOS or Linux:
 ```bash
 ./mvnw test
 ```
-
-Record the actual test results before reporting whether the test suite passes.
 
 ### Start the Application
 
@@ -193,17 +178,7 @@ Run the test suite using the Maven Wrapper:
 .\mvnw.cmd test
 ```
 
-The project currently has limited test coverage. Expand testing to cover:
-
-- Authentication and token lifecycle.
-- Role-based authorization.
-- Job creation, search, and lifecycle transitions.
-- Application submission and owner decisions.
-- Validation failures and error responses.
-- Database migrations and persistence behavior.
-- Cache invalidation and Redis failure handling.
-
-These are recommended test areas, not claims that all such tests currently exist.
+The current tests include a Spring application context-load smoke test and Redis JSON serializer round-trip tests. They do not constitute end-to-end verification of the MySQL, Redis, SMTP, or API workflows.
 
 ## Project Documentation
 
@@ -211,36 +186,9 @@ These are recommended test areas, not claims that all such tests currently exist
 - [API Reference](docs/API.md) — endpoint documentation.
 - [Database and Migrations](docs/DATABASE.md) — schema and migration details.
 - [Development Setup](docs/DEVELOPMENT.md) — local configuration and execution.
-- [Interview Preparation and Project Gaps](docs/INTERVIEW_PREP.md) — technical decisions, known gaps, and improvement areas.
-
-## Known Limitations
-
-This project is under active development and is **not yet claimed to be production-ready**.
-
-- Test coverage is limited.
-- Some implementation and schema concerns remain unresolved.
-- OAuth/social login, push notifications, and an operational review-submission API are not implemented in the current source.
-
-See [Known Gaps and Improvement Areas](docs/INTERVIEW_PREP.md#known-gaps-and-improvement-areas) for further details.
-
-## Future Improvements
-
-Potential next steps include:
-
-- Expand automated unit and integration tests.
-- Review authorization rules and token lifecycle security.
-- Resolve documented schema and implementation concerns.
-- Add CI checks for builds and tests.
-- Improve operational logging, monitoring, and deployment documentation.
-
-These are planned improvements, not currently implemented features.
 
 ## Related Project
 
 The Android client is maintained in a separate repository.
 
-- **Android Frontend:** Add your actual frontend repository URL here.
-
-## License
-
-No license has been specified in this README. Add a `LICENSE` file only after choosing terms that match your intended use and distribution of the code.
+- Android Frontend : [local job finder frontend](https://github.com/ponugubatikarthikeya-del/local-job-finder-frontend)
