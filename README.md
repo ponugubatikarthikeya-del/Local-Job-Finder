@@ -120,8 +120,8 @@ Check the project's Maven configuration and development documentation for exact 
 ### Clone the Repository
 
 ```bash
-git clone <YOUR_BACKEND_REPOSITORY_URL>
-cd <YOUR_BACKEND_REPOSITORY_DIRECTORY>
+git clone <BACKEND_REPOSITORY_URL>
+cd <BACKEND_REPOSITORY_DIRECTORY>
 ```
 Replace the placeholders with your actual GitHub repository URL and directory name.
 
